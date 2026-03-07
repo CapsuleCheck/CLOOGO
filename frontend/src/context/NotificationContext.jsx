@@ -24,7 +24,7 @@ export const NotificationProvider = ({ children }) => {
     if (user) fetchNotifications();
   }, [user, fetchNotifications]);
 
-  // Real-time WebSocket for notifications
+  // Real-time WebSocket for notifications, with polling fallback
   useEffect(() => {
     if (!token || !user) return;
     const wsBase = process.env.REACT_APP_BACKEND_URL
@@ -32,9 +32,22 @@ export const NotificationProvider = ({ children }) => {
       .replace('http://', 'ws://');
     let ws;
     let reconnectTimer;
+    let pollInterval;
+    let wsWorking = false;
+
+    const startPolling = () => {
+      if (!pollInterval) {
+        pollInterval = setInterval(fetchNotifications, 15000); // poll every 15s as fallback
+      }
+    };
 
     const connect = () => {
       ws = new WebSocket(`${wsBase}/api/ws/notifications?token=${token}`);
+      ws.onopen = () => {
+        wsWorking = true;
+        clearInterval(pollInterval);
+        pollInterval = null;
+      };
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
@@ -44,17 +57,20 @@ export const NotificationProvider = ({ children }) => {
           }
         } catch (e) { /* ignore */ }
       };
+      ws.onerror = () => { if (!wsWorking) startPolling(); };
       ws.onclose = () => {
-        reconnectTimer = setTimeout(connect, 3000);
+        startPolling();
+        reconnectTimer = setTimeout(connect, 10000);
       };
     };
 
     connect();
     return () => {
       clearTimeout(reconnectTimer);
+      clearInterval(pollInterval);
       ws?.close();
     };
-  }, [token, user]);
+  }, [token, user, fetchNotifications]);
 
   const markAllRead = async () => {
     try {

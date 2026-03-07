@@ -33,7 +33,24 @@ Build an errand app similar to Uber but for running errands. A User on the app w
 
 ## Implemented Features (Feb 2026)
 ### Backend
-- `POST /api/auth/register` - Register with email, password, name, neighborhood
+- All original endpoints (auth, errands, offers, messages, payments, profile)
+- `GET /api/notifications` - Get user's notifications
+- `PATCH /api/notifications/read-all` - Mark all read
+- `PATCH /api/notifications/{id}/read` - Mark one read
+- `WS /api/ws/notifications?token={jwt}` - Per-user real-time notification channel
+- `POST /api/errands/{id}/rate` - Submit 1-5 star rating
+- `GET /api/errands/{id}/my-rating` - Check if current user already rated
+- `GET /api/users/{user_id}/rating` - Get user's average rating
+- Errand schema: added `pickup_lat`, `pickup_lng` fields for map display
+- Notification triggers: new_offer, offer_accepted, payment_confirmed, errand_delivered, new_rating
+
+### Frontend Features Added
+- **Real-time Notifications**: Bell icon in Navbar with unread badge, Popover dropdown with notification list, mark-all-read, navigation to errand on click. WebSocket with 15s polling fallback.
+- **Rating System**: Post-completion star rating form in ErrandDetail (1-5 stars + optional comment). Average rating displayed on Profile page with star visual. Prevents duplicate ratings.
+- **Map View**: Dashboard list/map toggle using Leaflet/OpenStreetMap. Markers for errands with coordinates. Optional map pin picker in PostErrand step 2 (click to place pin, stores lat/lng with errand).
+
+### Known Issues
+- WebSocket connections (`wss://`) may fail in some environments (Kubernetes ingress config). Polling fallback (every 15s) ensures notifications still arrive.
 - `POST /api/auth/login` - JWT login
 - `GET /api/auth/me` - Get current user
 - `GET /api/errands` - List errands (filter by status, pickup, delivery)
