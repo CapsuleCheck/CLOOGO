@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Package, MapPin, DollarSign, CheckCircle, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Package, MapPin, DollarSign, CheckCircle, ChevronRight, ChevronLeft, Upload, X, Image as ImageIcon } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
@@ -38,13 +38,44 @@ export default function PostErrand() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
+  const fileInputRef = useRef(null);
   const [form, setForm] = useState({
     item_description: '', item_details: '',
     pickup_neighborhood: '', delivery_neighborhood: '', delivery_address: '',
-    offered_price: '', pickup_lat: null, pickup_lng: null,
+    offered_price: '', pickup_lat: null, pickup_lng: null, image_url: null,
   });
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+
+  const handleImageSelect = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    if (file.size > 8 * 1024 * 1024) { toast.error('Image must be under 8MB'); return; }
+    setImageUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await axios.post(`${API}/upload`, formData, {
+        headers: { ...authHeader, 'Content-Type': 'multipart/form-data' }
+      });
+      update('image_url', res.data.url);
+      setImagePreview(URL.createObjectURL(file));
+      toast.success('Image uploaded!');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Upload failed');
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  const clearImage = () => {
+    update('image_url', null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
   const canProceed = () => {
     if (step === 1) return form.item_description.trim().length >= 3;
@@ -116,6 +147,50 @@ export default function PostErrand() {
                 <textarea data-testid="post-item-details-input" className={`${inputClass} h-24 resize-none`}
                   placeholder="Any special instructions, item size, handling notes..."
                   value={form.item_details} onChange={e => update('item_details', e.target.value)} />
+              </div>
+
+              {/* Image Upload */}
+              <div>
+                <label className={labelClass}>
+                  Item photo <span className="text-slate-400 font-normal text-xs">(optional)</span>
+                </label>
+                <input ref={fileInputRef} type="file" accept="image/*"
+                  data-testid="post-image-input" className="hidden" onChange={handleImageSelect} />
+                {imagePreview ? (
+                  <div className="relative rounded-xl overflow-hidden border border-slate-200">
+                    <img src={imagePreview} alt="Item preview"
+                      className="w-full h-48 object-cover" data-testid="post-image-preview" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                    <button onClick={clearImage} data-testid="post-image-clear-btn"
+                      className="absolute top-2 right-2 w-7 h-7 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-md transition-colors">
+                      <X className="w-3.5 h-3.5 text-slate-700" />
+                    </button>
+                    <button onClick={() => fileInputRef.current?.click()}
+                      className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-white/90 hover:bg-white rounded-full px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-md transition-colors">
+                      <Upload className="w-3 h-3" /> Change
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => fileInputRef.current?.click()}
+                    data-testid="post-image-upload-btn"
+                    disabled={imageUploading}
+                    className="w-full h-36 rounded-xl border-2 border-dashed border-slate-200 hover:border-emerald-400 bg-slate-50 hover:bg-emerald-50/50 transition-all flex flex-col items-center justify-center gap-2 group">
+                    {imageUploading ? (
+                      <>
+                        <div className="w-7 h-7 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-sm text-slate-500">Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 group-hover:bg-emerald-100 flex items-center justify-center transition-colors">
+                          <ImageIcon className="w-5 h-5 text-slate-400 group-hover:text-emerald-600 transition-colors" />
+                        </div>
+                        <span className="text-sm text-slate-500 group-hover:text-slate-700 font-medium">Click to upload photo</span>
+                        <span className="text-xs text-slate-400">JPG, PNG, WebP · Max 8MB</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -219,10 +294,13 @@ export default function PostErrand() {
               <div className="space-y-3">
                 <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl">
                   <Package className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
-                  <div>
+                  <div className="flex-1">
                     <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">Item</p>
                     <p className="font-semibold text-slate-900">{form.item_description}</p>
                     {form.item_details && <p className="text-sm text-slate-500 mt-0.5">{form.item_details}</p>}
+                    {imagePreview && (
+                      <img src={imagePreview} alt="Item" className="mt-2 w-full h-28 object-cover rounded-lg" />
+                    )}
                   </div>
                 </div>
                 <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl">

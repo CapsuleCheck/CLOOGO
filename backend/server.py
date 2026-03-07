@@ -1,5 +1,6 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, WebSocket, WebSocketDisconnect, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, WebSocket, WebSocketDisconnect, Request, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -16,6 +17,9 @@ from emergentintegrations.payments.stripe.checkout import StripeCheckout, Checko
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+UPLOADS_DIR = ROOT_DIR / "uploads"
+UPLOADS_DIR.mkdir(exist_ok=True)
 
 mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
@@ -143,6 +147,7 @@ class ErrandCreate(BaseModel):
     offered_price: float
     pickup_lat: Optional[float] = None
     pickup_lng: Optional[float] = None
+    image_url: Optional[str] = None
 
 class OfferCreate(BaseModel):
     proposed_price: float
@@ -265,6 +270,7 @@ async def create_errand(errand_data: ErrandCreate, current_user=Depends(get_curr
         "offered_price": float(errand_data.offered_price),
         "pickup_lat": errand_data.pickup_lat,
         "pickup_lng": errand_data.pickup_lng,
+        "image_url": errand_data.image_url,
         "status": "open",
         "runner_id": None,
         "runner_name": None,
@@ -671,6 +677,31 @@ async def get_user_rating(user_id: str, current_user=Depends(get_current_user)):
         return {"average": None, "count": 0}
     avg = sum(r["stars"] for r in ratings) / len(ratings)
     return {"average": round(avg, 1), "count": len(ratings)}
+
+
+# --- Image Upload ---
+@api_router.post("/upload")
+async def upload_image(file: UploadFile = File(...), current_user=Depends(get_current_user)):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only image files are allowed")
+    ext = (file.filename or "img").rsplit(".", 1)[-1].lower()
+    if ext not in ["jpg", "jpeg", "png", "gif", "webp"]:
+        ext = "jpg"
+    content = await file.read()
+    if len(content) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image must be under 8MB")
+    filename = f"{uuid.uuid4()}.{ext}"
+    filepath = UPLOADS_DIR / filename
+    with open(str(filepath), "wb") as f:
+        f.write(content)
+    return {"url": f"/api/images/{filename}", "filename": filename}
+
+@api_router.get("/images/{filename}")
+async def serve_image(filename: str):
+    filepath = UPLOADS_DIR / filename
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Image not found")
+    return FileResponse(str(filepath))
 
 
 # --- Profile ---

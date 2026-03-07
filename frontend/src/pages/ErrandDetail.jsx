@@ -306,6 +306,17 @@ export default function ErrandDetail() {
             <p className="text-sm text-slate-600 bg-slate-50 rounded-xl p-3 mb-4">{errand.item_details}</p>
           )}
 
+          {/* Item image */}
+          {errand.image_url && (
+            <div className="rounded-xl overflow-hidden mb-4 border border-slate-100" data-testid="errand-image">
+              <img
+                src={`${process.env.REACT_APP_BACKEND_URL}${errand.image_url}`}
+                alt={errand.item_description}
+                className="w-full max-h-72 object-cover"
+              />
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div className="bg-slate-50 rounded-xl p-3">
               <p className="text-xs text-slate-400 uppercase tracking-wide font-medium mb-1">Pickup</p>
