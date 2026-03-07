@@ -1,0 +1,179 @@
+{
+  "identity": {
+    "persona": "E1",
+    "mission": "Create a neighborhood errand app that feels like a trusted local community, not a soulless tech giant.",
+    "principles": [
+      "Fusion over Imitation: Mix 'Swiss Utility' with 'Friendly Local Bakery' aesthetics.",
+      "Emotion First: Trust and Efficiency. Every pixel must feel safe and snappy.",
+      "Content is King: The errand details (Money, Item, Location) are the heroes.",
+      "Zoom In: Use large, legible type for critical numbers (Price, Distance).",
+      "Negative Space: Don't clutter. Let the map/list breathe."
+    ],
+    "anti_patterns": [
+      "Purple/Teal primary buttons (Overused SaaS trope).",
+      "Center-aligned everything (Boring).",
+      "Generic 'Inter' for Headings.",
+      "Full-screen gradients."
+    ]
+  },
+  "typography": {
+    "font_family": {
+      "headings": "Manrope, sans-serif",
+      "body": "Inter, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "weights": {
+      "headings": "font-bold (700) or font-extrabold (800)",
+      "body": "font-normal (400) or font-medium (500)"
+    },
+    "tracking": {
+      "headings": "tracking-tight (-0.02em)",
+      "overline": "tracking-widest (0.2em) uppercase"
+    },
+    "scale": {
+      "hero": "text-5xl md:text-7xl",
+      "section_title": "text-3xl md:text-4xl",
+      "card_title": "text-xl font-bold",
+      "body": "text-base leading-relaxed"
+    }
+  },
+  "colors": {
+    "theme": "light",
+    "palette": {
+      "primary": {
+        "name": "Neighborhood Emerald",
+        "hex": "#059669",
+        "tailwind": "bg-emerald-600 text-white hover:bg-emerald-700",
+        "usage": "Primary Buttons, Active States, Success Indicators"
+      },
+      "secondary": {
+        "name": "Trust Slate",
+        "hex": "#0f172a",
+        "tailwind": "bg-slate-900 text-white",
+        "usage": "Headings, Strong Text, Footer"
+      },
+      "accent": {
+        "name": "Delivery Amber",
+        "hex": "#fbbf24",
+        "tailwind": "bg-amber-400 text-amber-950",
+        "usage": "Price Tags, Notification Badges, 'New' Labels"
+      },
+      "background": {
+        "page": "bg-slate-50",
+        "card": "bg-white",
+        "subtle": "bg-slate-100"
+      },
+      "text": {
+        "main": "text-slate-900",
+        "muted": "text-slate-500",
+        "inverted": "text-white"
+      },
+      "border": {
+        "default": "border-slate-200",
+        "active": "border-emerald-500"
+      }
+    },
+    "forbidden_colors": [
+      "#1B93A4",
+      "#7351B7"
+    ]
+  },
+  "layout": {
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "spacing": {
+      "section_y": "py-20 md:py-32",
+      "card_p": "p-6 md:p-8",
+      "gap": "gap-6 md:gap-8"
+    },
+    "grids": {
+      "dashboard_feed": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6",
+      "landing_hero": "grid grid-cols-1 lg:grid-cols-12 gap-12 items-center",
+      "features_bento": "grid grid-cols-1 md:grid-cols-3 gap-4 auto-rows-[200px]"
+    },
+    "radius": {
+      "default": "rounded-xl",
+      "button": "rounded-full",
+      "card": "rounded-2xl"
+    }
+  },
+  "components": {
+    "buttons": {
+      "primary": "rounded-full bg-emerald-600 px-8 py-3 text-white font-bold hover:bg-emerald-700 hover:-translate-y-0.5 transition-all shadow-lg shadow-emerald-600/20",
+      "secondary": "rounded-full bg-white border border-slate-200 text-slate-900 px-8 py-3 hover:bg-slate-50 hover:border-slate-300 transition-all",
+      "ghost": "rounded-lg text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 px-4 py-2"
+    },
+    "cards": {
+      "base": "bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1 transition-all duration-300",
+      "active": "ring-2 ring-emerald-500 shadow-md"
+    },
+    "inputs": {
+      "default": "rounded-lg border-slate-200 bg-slate-50 px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all placeholder:text-slate-400",
+      "search": "pl-10 rounded-full"
+    },
+    "badges": {
+      "price": "bg-emerald-50 text-emerald-700 font-bold px-3 py-1 rounded-full text-sm border border-emerald-100",
+      "status_open": "bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md text-xs font-semibold",
+      "status_active": "bg-amber-50 text-amber-700 px-2 py-0.5 rounded-md text-xs font-semibold"
+    },
+    "navigation": {
+      "mobile_bottom": "fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-xl border-t border-slate-200 p-4 flex justify-around items-center z-50",
+      "desktop_top": "fixed top-0 w-full bg-white/90 backdrop-blur-md border-b border-slate-100 z-50"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": "bg-white/70 backdrop-blur-xl border border-white/20 shadow-lg",
+    "gradients": {
+      "subtle_hero": "bg-gradient-to-b from-emerald-50/50 to-white",
+      "card_hover": "bg-gradient-to-br from-white to-slate-50"
+    },
+    "shadows": {
+      "soft": "shadow-[0_2px_10px_-3px_rgba(6,81,237,0.1)]",
+      "float": "shadow-[0_20px_40px_-12px_rgba(0,0,0,0.1)]"
+    }
+  },
+  "motion": {
+    "hover": "transition-transform duration-200 ease-out hover:-translate-y-1",
+    "click": "active:scale-95 transition-transform duration-75",
+    "fade_in": "animate-in fade-in duration-500",
+    "slide_up": "animate-in slide-in-from-bottom-4 fade-in duration-500"
+  },
+  "assets": {
+    "images": {
+      "hero_main": "https://images.unsplash.com/photo-1758274251489-bcf562ae7da7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODh8MHwxfHNlYXJjaHwyfHxoYXBweSUyMGZyaWVuZHMlMjB0YWxraW5nJTIwb3V0ZG9vciUyMHN1bm55fGVufDB8fHx8MTc3Mjg0MzY2Nnww&ixlib=rb-4.1.0&q=85",
+      "courier_delivery": "https://images.unsplash.com/photo-1646920912229-bc0d5d94e68b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzZ8MHwxfHNlYXJjaHwyfHxwZXJzb24lMjBob2xkaW5nJTIwZGVsaXZlcnklMjBwYWNrYWdlJTIwY291cmllcnxlbnwwfHx8fDE3NzI4NDM2NTJ8MA&ixlib=rb-4.1.0&q=85",
+      "package_doorstep": "https://images.unsplash.com/photo-1758523670564-d1d6a734dc0b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzN8MHwxfHNlYXJjaHwxfHxjYXJkYm9hcmQlMjBib3glMjBvbiUyMGRvb3JzdGVwfGVufDB8fHx8MTc3Mjg0MzY1Mnww&ixlib=rb-4.1.0&q=85",
+      "happy_user_mobile": "https://images.unsplash.com/photo-1758272420171-6e7de7b36789?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODF8MHwxfHNlYXJjaHwzfHxwZXJzb24lMjBsb29raW5nJTIwYXQlMjBwaG9uZSUyMGhhcHB5JTIwY2l0eSUyMHN0cmVldHxlbnwwfHx8fDE3NzI4NDM2NjZ8MA&ixlib=rb-4.1.0&q=85"
+    },
+    "icons": {
+      "library": "lucide-react",
+      "style": "stroke-width=2",
+      "size": "w-5 h-5"
+    }
+  },
+  "accessibility": {
+    "contrast": "Ensure text is slate-900 on white, or white on emerald-600.",
+    "focus_states": "ring-2 ring-emerald-500 ring-offset-2",
+    "aria_labels": "All icon-only buttons must have aria-label."
+  },
+  "universal_guidelines": {
+    "donts": [
+      "No generic 'Lorem Ipsum' - use realistic errand data.",
+      "No 'transition: all'.",
+      "No centered text blocks longer than 3 lines."
+    ],
+    "dos": [
+      "Use 'data-testid' on all interactables.",
+      "Use 'sonner' for toasts.",
+      "Use 'date-fns' for formatting dates (e.g., 'Today, 2:00 PM').",
+      "Mobile-first: Check layouts at 375px width."
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Install 'lucide-react' if missing.",
+    "Use 'Manrope' from Google Fonts via import in index.css.",
+    "Implement the 'Post Errand' flow as a multi-step wizard, not a giant form.",
+    "Dashboard should look like a lively feed of opportunities.",
+    "Chat should feel like iMessage or WhatsApp - clean bubbles, distinct colors.",
+    "Use the 'Bento' grid logic for the 'How it Works' section on the landing page."
+  ]
+}
