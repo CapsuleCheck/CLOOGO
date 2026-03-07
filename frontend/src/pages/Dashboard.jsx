@@ -1,9 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, MapPin, Clock, Package, ChevronRight, RefreshCw } from 'lucide-react';
+import { Search, MapPin, Clock, Package, ChevronRight, RefreshCw, List, Map } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix Leaflet marker icons
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
 
 const STATUS_COLORS = {
   open: 'bg-blue-50 text-blue-700 border-blue-100',
@@ -14,12 +25,15 @@ const STATUS_COLORS = {
 };
 
 const STATUS_LABELS = {
-  open: 'Open',
-  matched: 'Matched',
-  in_progress: 'In Progress',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
+  open: 'Open', matched: 'Matched', in_progress: 'In Progress',
+  completed: 'Completed', cancelled: 'Cancelled',
 };
+
+function RecenterMap({ center }) {
+  const map = useMap();
+  useEffect(() => { if (center) map.setView(center, 13); }, [center, map]);
+  return null;
+}
 
 function ErrandCard({ errand }) {
   const timeAgo = formatDistanceToNow(new Date(errand.created_at), { addSuffix: true });
@@ -39,9 +53,7 @@ function ErrandCard({ errand }) {
           </span>
         </div>
       </div>
-      <h3 className="font-bold text-slate-900 text-lg font-['Manrope'] mb-3 line-clamp-1">
-        {errand.item_description}
-      </h3>
+      <h3 className="font-bold text-slate-900 text-lg font-['Manrope'] mb-3 line-clamp-1">{errand.item_description}</h3>
       <div className="space-y-1.5 mb-4">
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
@@ -64,11 +76,68 @@ function ErrandCard({ errand }) {
           <span className="text-xs text-slate-500">{errand.poster_name}</span>
         </div>
         <div className="flex items-center gap-1 text-xs text-slate-400">
-          <Clock className="w-3 h-3" />
-          {timeAgo}
+          <Clock className="w-3 h-3" />{timeAgo}
         </div>
       </div>
     </Link>
+  );
+}
+
+function MapView({ errands }) {
+  const errandsWithCoords = errands.filter(e => e.pickup_lat && e.pickup_lng);
+  const errandsNoCoords = errands.filter(e => !e.pickup_lat || !e.pickup_lng);
+
+  const center = useMemo(() => {
+    if (errandsWithCoords.length === 0) return [41.8781, -87.6298];
+    const avgLat = errandsWithCoords.reduce((s, e) => s + e.pickup_lat, 0) / errandsWithCoords.length;
+    const avgLng = errandsWithCoords.reduce((s, e) => s + e.pickup_lng, 0) / errandsWithCoords.length;
+    return [avgLat, avgLng];
+  }, [errandsWithCoords]);
+
+  return (
+    <div>
+      <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm" style={{ height: 420 }}>
+        <MapContainer center={center} zoom={12} style={{ height: '100%', width: '100%' }}>
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a>'
+          />
+          <RecenterMap center={center} />
+          {errandsWithCoords.map(errand => (
+            <Marker key={errand.id} position={[errand.pickup_lat, errand.pickup_lng]}>
+              <Popup className="errand-popup">
+                <div className="min-w-[180px]">
+                  <p className="font-bold text-slate-900 text-sm mb-1">{errand.item_description}</p>
+                  <p className="text-xs text-slate-500 mb-1">{errand.pickup_neighborhood} → {errand.delivery_neighborhood}</p>
+                  <p className="font-extrabold text-emerald-600 text-base mb-2">${errand.offered_price.toFixed(2)}</p>
+                  <a href={`/errands/${errand.id}`}
+                    className="block w-full text-center bg-emerald-600 text-white text-xs font-bold py-1.5 rounded-lg hover:bg-emerald-700 transition-colors">
+                    View Errand →
+                  </a>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+      </div>
+      {errandsWithCoords.length === 0 && (
+        <div className="text-center py-6 bg-slate-50 rounded-2xl mt-4 border border-slate-100">
+          <MapPin className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+          <p className="text-slate-500 text-sm">No errands have pinned locations yet.</p>
+          <p className="text-slate-400 text-xs mt-1">Errands with map pins will appear here.</p>
+        </div>
+      )}
+      {errandsNoCoords.length > 0 && (
+        <div className="mt-6">
+          <p className="text-sm font-semibold text-slate-500 mb-3">
+            {errandsNoCoords.length} errand{errandsNoCoords.length > 1 ? 's' : ''} without pinned location:
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {errandsNoCoords.map(e => <ErrandCard key={e.id} errand={e} />)}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -78,6 +147,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterNeighborhood, setFilterNeighborhood] = useState('');
+  const [viewMode, setViewMode] = useState('list');
 
   const fetchErrands = async () => {
     setLoading(true);
@@ -104,7 +174,6 @@ export default function Dashboard() {
   return (
     <main className="pt-20 pb-28 md:pb-8 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="py-8">
           <p className="text-slate-500 text-sm mb-1">Good day,</p>
           <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 font-['Manrope'] tracking-tight">
@@ -113,36 +182,42 @@ export default function Dashboard() {
           <p className="text-slate-500 mt-1">Find errands near {user?.neighborhood}</p>
         </div>
 
-        {/* Search & Filter */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-8">
+        {/* Search & Filters */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              data-testid="dashboard-search-input"
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder:text-slate-400"
-              placeholder="Search errands..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
+            <input data-testid="dashboard-search-input"
+              className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-slate-400"
+              placeholder="Search errands..." value={search} onChange={e => setSearch(e.target.value)} />
           </div>
           <div className="relative">
             <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              data-testid="dashboard-neighborhood-filter"
-              className="pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder:text-slate-400 min-w-[180px]"
-              placeholder="Filter by pickup area"
-              value={filterNeighborhood}
-              onChange={e => setFilterNeighborhood(e.target.value)}
-            />
+            <input data-testid="dashboard-neighborhood-filter"
+              className="pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder:text-slate-400 min-w-[180px]"
+              placeholder="Filter by pickup area" value={filterNeighborhood} onChange={e => setFilterNeighborhood(e.target.value)} />
           </div>
-          <button onClick={fetchErrands} data-testid="dashboard-refresh-btn"
-            className="flex items-center gap-2 px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm hover:bg-slate-50 transition-colors">
-            <RefreshCw className="w-4 h-4" />
-            <span className="hidden sm:block">Refresh</span>
-          </button>
+          <div className="flex gap-2">
+            <button onClick={fetchErrands} data-testid="dashboard-refresh-btn"
+              className="flex items-center gap-2 px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm hover:bg-slate-50 transition-colors">
+              <RefreshCw className="w-4 h-4" />
+            </button>
+            {/* View Mode Toggle */}
+            <div className="flex rounded-xl border border-slate-200 bg-white overflow-hidden">
+              <button data-testid="dashboard-list-view-btn"
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-1.5 px-3 py-3 text-sm transition-colors ${viewMode === 'list' ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+                <List className="w-4 h-4" />
+              </button>
+              <button data-testid="dashboard-map-view-btn"
+                onClick={() => setViewMode('map')}
+                className={`flex items-center gap-1.5 px-3 py-3 text-sm transition-colors ${viewMode === 'map' ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
+                <Map className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Quick Action */}
+        {/* Quick post action */}
         <div className="mb-8 bg-gradient-to-r from-emerald-600 to-emerald-500 rounded-2xl p-6 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <p className="font-bold text-lg font-['Manrope']">Need something picked up?</p>
@@ -154,11 +229,14 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {/* Errands Grid */}
+        {/* Content */}
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-bold text-slate-900 font-['Manrope'] text-lg">
             Open Errands {filtered.length > 0 && <span className="text-slate-400 font-normal text-base">({filtered.length})</span>}
           </h2>
+          <span className="text-xs text-slate-400 font-medium uppercase tracking-widest">
+            {viewMode === 'map' ? 'Map View' : 'List View'}
+          </span>
         </div>
 
         {loading ? (
@@ -184,18 +262,17 @@ export default function Dashboard() {
             </div>
             <h3 className="font-bold text-slate-900 font-['Manrope'] text-xl mb-2">No errands found</h3>
             <p className="text-slate-500 mb-6 max-w-sm mx-auto">
-              {filterNeighborhood ? `No open errands from "${filterNeighborhood}" right now.` : "No open errands yet. Be the first to post one!"}
+              {filterNeighborhood ? `No open errands from "${filterNeighborhood}" right now.` : "No open errands yet. Be the first!"}
             </p>
-            <Link to="/post-errand"
-              className="inline-flex rounded-full bg-emerald-600 px-6 py-3 text-white font-bold text-sm hover:bg-emerald-700 transition-all">
+            <Link to="/post-errand" className="inline-flex rounded-full bg-emerald-600 px-6 py-3 text-white font-bold text-sm hover:bg-emerald-700 transition-all">
               Post the first errand
             </Link>
           </div>
+        ) : viewMode === 'map' ? (
+          <MapView errands={filtered} />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="errands-grid">
-            {filtered.map(errand => (
-              <ErrandCard key={errand.id} errand={errand} />
-            ))}
+            {filtered.map(errand => <ErrandCard key={errand.id} errand={errand} />)}
           </div>
         )}
       </div>

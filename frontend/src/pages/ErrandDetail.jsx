@@ -32,6 +32,9 @@ export default function ErrandDetail() {
   const [submittingOffer, setSubmittingOffer] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState(null);
+  const [ratingForm, setRatingForm] = useState({ stars: 0, comment: '' });
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  const [submittingRating, setSubmittingRating] = useState(false);
 
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -64,6 +67,14 @@ export default function ErrandDetail() {
   };
 
   useEffect(() => { fetchAll(); }, [id]);
+
+  // Check if current user already rated
+  useEffect(() => {
+    if (!errand || errand.status !== 'completed') return;
+    axios.get(`${API}/errands/${id}/my-rating`, { headers: authHeader })
+      .then(res => { if (res.data.rated) setRatingSubmitted(true); })
+      .catch(console.error);
+  }, [errand?.status]);
 
   // WebSocket connection
   useEffect(() => {
@@ -197,6 +208,20 @@ export default function ErrandDetail() {
       toast.success('Errand marked as completed!');
     } catch (err) {
       toast.error('Failed to update status');
+    }
+  };
+
+  const submitRating = async () => {
+    if (ratingForm.stars === 0) { toast.error('Please select a star rating'); return; }
+    setSubmittingRating(true);
+    try {
+      await axios.post(`${API}/errands/${id}/rate`, ratingForm, { headers: authHeader });
+      setRatingSubmitted(true);
+      toast.success('Rating submitted! Thank you.');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to submit rating');
+    } finally {
+      setSubmittingRating(false);
     }
   };
 
@@ -491,6 +516,58 @@ export default function ErrandDetail() {
                 <Send className="w-4 h-4" />
               </button>
             </div>
+          </div>
+        )}
+
+        {/* Rating Section — after completion */}
+        {errand?.status === 'completed' && (isPoster || isRunner) && (
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6" data-testid="rating-section">
+            {ratingSubmitted ? (
+              <div className="flex items-center gap-3 text-emerald-600">
+                <CheckCircle className="w-6 h-6" />
+                <div>
+                  <p className="font-bold font-['Manrope']">Rating submitted!</p>
+                  <p className="text-sm text-emerald-500">Thank you for your feedback.</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <h2 className="font-bold text-slate-900 font-['Manrope'] text-lg mb-4">Rate your experience</h2>
+                <p className="text-sm text-slate-500 mb-4">
+                  {isPoster ? `How was ${errand.runner_name} as a runner?` : `How was ${errand.poster_name} as a poster?`}
+                </p>
+                {/* Star selector */}
+                <div className="flex gap-2 mb-4">
+                  {[1,2,3,4,5].map(star => (
+                    <button key={star} data-testid={`rating-star-${star}`}
+                      onClick={() => setRatingForm(f => ({ ...f, stars: star }))}
+                      className={`w-10 h-10 rounded-xl transition-all hover:scale-110 ${
+                        star <= ratingForm.stars ? 'text-amber-400' : 'text-slate-200'
+                      }`}>
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="w-10 h-10">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+                {ratingForm.stars > 0 && (
+                  <p className="text-sm font-medium text-slate-600 mb-3">
+                    {['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent!'][ratingForm.stars]}
+                  </p>
+                )}
+                <textarea data-testid="rating-comment-input"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none h-20 placeholder:text-slate-400 mb-4"
+                  placeholder="Leave a comment (optional)..."
+                  value={ratingForm.comment}
+                  onChange={e => setRatingForm(f => ({ ...f, comment: e.target.value }))}
+                />
+                <button data-testid="submit-rating-btn"
+                  onClick={submitRating} disabled={submittingRating || ratingForm.stars === 0}
+                  className="rounded-full bg-amber-500 px-6 py-2.5 text-white font-bold text-sm hover:bg-amber-600 disabled:opacity-50 transition-all">
+                  {submittingRating ? 'Submitting...' : 'Submit Rating'}
+                </button>
+              </>
+            )}
           </div>
         )}
 

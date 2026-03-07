@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[str, List[WebSocket]] = {}
+        self.user_connections: Dict[str, List[WebSocket]] = {}
 
     async def connect(self, websocket: WebSocket, room_id: str):
         await websocket.accept()
@@ -50,6 +51,19 @@ class ConnectionManager:
         if room_id in self.active_connections:
             try:
                 self.active_connections[room_id].remove(websocket)
+            except ValueError:
+                pass
+
+    async def connect_user(self, websocket: WebSocket, user_id: str):
+        await websocket.accept()
+        if user_id not in self.user_connections:
+            self.user_connections[user_id] = []
+        self.user_connections[user_id].append(websocket)
+
+    def disconnect_user(self, websocket: WebSocket, user_id: str):
+        if user_id in self.user_connections:
+            try:
+                self.user_connections[user_id].remove(websocket)
             except ValueError:
                 pass
 
@@ -68,8 +82,41 @@ class ConnectionManager:
             except ValueError:
                 pass
 
+    async def notify_user(self, user_id: str, data: dict):
+        if user_id not in self.user_connections:
+            return
+        dead = []
+        for conn in self.user_connections[user_id]:
+            try:
+                await conn.send_json(data)
+            except Exception:
+                dead.append(conn)
+        for c in dead:
+            try:
+                self.user_connections[user_id].remove(c)
+            except ValueError:
+                pass
+
 
 manager = ConnectionManager()
+
+
+# --- Notification Helper ---
+async def create_notification(user_id: str, ntype: str, title: str, body: str, errand_id: str = None):
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "type": ntype,
+        "title": title,
+        "body": body,
+        "errand_id": errand_id,
+        "is_read": False,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.notifications.insert_one(doc)
+    clean = {k: v for k, v in doc.items() if k != "_id"}
+    await manager.notify_user(user_id, {"type": "notification", **clean})
+    return clean
 
 
 # --- Pydantic Models ---
@@ -94,6 +141,8 @@ class ErrandCreate(BaseModel):
     delivery_neighborhood: str
     delivery_address: str
     offered_price: float
+    pickup_lat: Optional[float] = None
+    pickup_lng: Optional[float] = None
 
 class OfferCreate(BaseModel):
     proposed_price: float
@@ -108,6 +157,10 @@ class CheckoutRequest(BaseModel):
 
 class StatusUpdate(BaseModel):
     status: str
+
+class RatingCreate(BaseModel):
+    stars: int
+    comment: Optional[str] = None
 
 
 # --- Auth Utilities ---
@@ -210,6 +263,8 @@ async def create_errand(errand_data: ErrandCreate, current_user=Depends(get_curr
         "delivery_neighborhood": errand_data.delivery_neighborhood,
         "delivery_address": errand_data.delivery_address,
         "offered_price": float(errand_data.offered_price),
+        "pickup_lat": errand_data.pickup_lat,
+        "pickup_lng": errand_data.pickup_lng,
         "status": "open",
         "runner_id": None,
         "runner_name": None,
@@ -235,8 +290,18 @@ async def update_errand_status(errand_id: str, body: StatusUpdate, current_user=
         raise HTTPException(status_code=403, detail="Not authorized")
     await db.errands.update_one({"id": errand_id}, {"$set": {"status": body.status}})
     updated = await db.errands.find_one({"id": errand_id}, {"_id": 0})
-    # Broadcast status change via WebSocket
     await manager.broadcast({"type": "status_update", "status": body.status}, errand_id)
+    # Send notifications on key status transitions
+    if body.status == "completed" and errand.get("poster_id"):
+        await create_notification(
+            errand["poster_id"], "errand_delivered", "Item delivered!",
+            f"'{errand['item_description']}' has been delivered. Please rate your experience.", errand_id
+        )
+    elif body.status == "in_progress" and errand.get("runner_id"):
+        await create_notification(
+            errand["runner_id"], "payment_confirmed", "Payment confirmed — start running!",
+            f"Payment received for '{errand['item_description']}'. Go pick it up!", errand_id
+        )
     return updated
 
 @api_router.delete("/errands/{errand_id}")
@@ -285,6 +350,12 @@ async def create_offer(errand_id: str, offer_data: OfferCreate, current_user=Dep
     await db.offers.insert_one(doc)
     # Broadcast new offer to errand room
     await manager.broadcast({"type": "new_offer", "offer": {k: v for k, v in doc.items() if k != "_id"}}, errand_id)
+    # Notify poster
+    await create_notification(
+        errand["poster_id"], "new_offer", "New offer on your errand",
+        f"{current_user['name']} offered ${offer_data.proposed_price:.2f} to run '{errand['item_description']}'",
+        errand_id
+    )
     return {k: v for k, v in doc.items() if k != "_id"}
 
 @api_router.patch("/offers/{offer_id}/accept")
@@ -316,6 +387,12 @@ async def accept_offer(offer_id: str, current_user=Depends(get_current_user)):
     )
     updated = await db.errands.find_one({"id": offer["errand_id"]}, {"_id": 0})
     await manager.broadcast({"type": "offer_accepted", "errand": updated}, offer["errand_id"])
+    # Notify runner
+    await create_notification(
+        offer["runner_id"], "offer_accepted", "Your offer was accepted!",
+        f"Your ${offer['proposed_price']:.2f} offer on '{errand['item_description']}' was accepted. Awaiting payment.",
+        offer["errand_id"]
+    )
     return updated
 
 @api_router.patch("/offers/{offer_id}/reject")
@@ -474,6 +551,13 @@ async def get_payment_status(session_id: str, current_user=Depends(get_current_u
         if status_resp.payment_status == "paid":
             await db.errands.update_one({"id": tx["errand_id"]}, {"$set": {"status": "in_progress"}})
             await manager.broadcast({"type": "payment_confirmed", "errand_id": tx["errand_id"]}, tx["errand_id"])
+            errand_for_notif = await db.errands.find_one({"id": tx["errand_id"]})
+            if errand_for_notif and errand_for_notif.get("runner_id"):
+                await create_notification(
+                    errand_for_notif["runner_id"], "payment_confirmed", "Payment received!",
+                    f"${tx['amount']:.2f} confirmed for '{errand_for_notif['item_description']}'. Go pick it up!",
+                    tx["errand_id"]
+                )
         tx.update(update)
     except Exception as e:
         logger.error(f"Stripe status check error: {e}")
@@ -497,6 +581,96 @@ async def stripe_webhook(request: Request):
     except Exception as e:
         logger.error(f"Webhook error: {e}")
     return {"received": True}
+
+
+# --- Notification WebSocket ---
+@api_router.websocket("/ws/notifications")
+async def notification_websocket(websocket: WebSocket, token: str = None):
+    if not token:
+        await websocket.close(code=4001)
+        return
+    user = await get_user_from_token(token)
+    if not user:
+        await websocket.close(code=4001)
+        return
+    await manager.connect_user(websocket, user["id"])
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect_user(websocket, user["id"])
+
+
+# --- Notification Endpoints ---
+@api_router.get("/notifications")
+async def get_notifications(current_user=Depends(get_current_user)):
+    notifs = await db.notifications.find(
+        {"user_id": current_user["id"]}, {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    return notifs
+
+@api_router.patch("/notifications/read-all")
+async def mark_all_read(current_user=Depends(get_current_user)):
+    await db.notifications.update_many(
+        {"user_id": current_user["id"], "is_read": False},
+        {"$set": {"is_read": True}}
+    )
+    return {"message": "All marked as read"}
+
+@api_router.patch("/notifications/{notif_id}/read")
+async def mark_one_read(notif_id: str, current_user=Depends(get_current_user)):
+    await db.notifications.update_one(
+        {"id": notif_id, "user_id": current_user["id"]},
+        {"$set": {"is_read": True}}
+    )
+    return {"message": "Marked as read"}
+
+
+# --- Rating Endpoints ---
+@api_router.post("/errands/{errand_id}/rate")
+async def rate_errand(errand_id: str, rating_data: RatingCreate, current_user=Depends(get_current_user)):
+    if not (1 <= rating_data.stars <= 5):
+        raise HTTPException(status_code=400, detail="Stars must be between 1 and 5")
+    errand = await db.errands.find_one({"id": errand_id})
+    if not errand:
+        raise HTTPException(status_code=404, detail="Errand not found")
+    if errand["status"] != "completed":
+        raise HTTPException(status_code=400, detail="Can only rate completed errands")
+    if current_user["id"] not in [errand["poster_id"], errand.get("runner_id")]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    if await db.ratings.find_one({"errand_id": errand_id, "rater_id": current_user["id"]}):
+        raise HTTPException(status_code=400, detail="You have already rated this errand")
+    ratee_id = errand["runner_id"] if current_user["id"] == errand["poster_id"] else errand["poster_id"]
+    doc = {
+        "id": str(uuid.uuid4()),
+        "errand_id": errand_id,
+        "rater_id": current_user["id"],
+        "rater_name": current_user["name"],
+        "ratee_id": ratee_id,
+        "stars": rating_data.stars,
+        "comment": rating_data.comment,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.ratings.insert_one(doc)
+    await create_notification(
+        ratee_id, "new_rating", "You received a new rating!",
+        f"{current_user['name']} gave you {rating_data.stars} star(s) for '{errand['item_description']}'",
+        errand_id
+    )
+    return {k: v for k, v in doc.items() if k != "_id"}
+
+@api_router.get("/errands/{errand_id}/my-rating")
+async def get_my_rating(errand_id: str, current_user=Depends(get_current_user)):
+    rating = await db.ratings.find_one({"errand_id": errand_id, "rater_id": current_user["id"]}, {"_id": 0})
+    return {"rated": rating is not None, "rating": rating}
+
+@api_router.get("/users/{user_id}/rating")
+async def get_user_rating(user_id: str, current_user=Depends(get_current_user)):
+    ratings = await db.ratings.find({"ratee_id": user_id}, {"_id": 0}).to_list(200)
+    if not ratings:
+        return {"average": None, "count": 0}
+    avg = sum(r["stars"] for r in ratings) / len(ratings)
+    return {"average": round(avg, 1), "count": len(ratings)}
 
 
 # --- Profile ---

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, MapPin, Package, Truck, CheckCircle, Edit2, Save, X } from 'lucide-react';
+import { User, MapPin, Package, Truck, CheckCircle, Edit2, Save, X, Star } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
@@ -13,14 +13,20 @@ export default function Profile() {
   const [form, setForm] = useState({ name: '', neighborhood: '' });
   const [saving, setSaving] = useState(false);
   const [stats, setStats] = useState(null);
+  const [userRating, setUserRating] = useState(null);
 
   useEffect(() => {
     if (user) {
       setForm({ name: user.name, neighborhood: user.neighborhood });
+      // Fetch stats and rating in parallel
+      Promise.all([
+        axios.get(`${API}/my/stats`, { headers: authHeader }),
+        axios.get(`${API}/users/${user.id}/rating`, { headers: authHeader }),
+      ]).then(([statsRes, ratingRes]) => {
+        setStats(statsRes.data);
+        setUserRating(ratingRes.data);
+      }).catch(console.error);
     }
-    axios.get(`${API}/my/stats`, { headers: authHeader })
-      .then(res => setStats(res.data))
-      .catch(console.error);
   }, [user]);
 
   const saveProfile = async () => {
@@ -57,18 +63,27 @@ export default function Profile() {
               </div>
               <div>
                 {editing ? (
-                  <input data-testid="profile-name-input"
-                    className={`${inputClass} mb-1`}
-                    value={form.name}
-                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    placeholder="Your name"
-                  />
+                  <input data-testid="profile-name-input" className={`${inputClass} mb-1`}
+                    value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Your name" />
                 ) : (
-                  <h2 className="text-xl font-bold text-slate-900 font-['Manrope']" data-testid="profile-name-display">
-                    {user?.name}
-                  </h2>
+                  <h2 className="text-xl font-bold text-slate-900 font-['Manrope']" data-testid="profile-name-display">{user?.name}</h2>
                 )}
                 <p className="text-sm text-slate-500" data-testid="profile-email-display">{user?.email}</p>
+                {/* Rating display */}
+                {userRating && userRating.count > 0 && (
+                  <div className="flex items-center gap-1.5 mt-1" data-testid="profile-rating-display">
+                    <div className="flex">
+                      {[1,2,3,4,5].map(star => (
+                        <Star key={star} className={`w-3.5 h-3.5 ${star <= Math.round(userRating.average) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
+                      ))}
+                    </div>
+                    <span className="text-xs font-semibold text-slate-600">{userRating.average}</span>
+                    <span className="text-xs text-slate-400">({userRating.count} ratings)</span>
+                  </div>
+                )}
+                {userRating && userRating.count === 0 && (
+                  <p className="text-xs text-slate-400 mt-1">No ratings yet</p>
+                )}
               </div>
             </div>
             {!editing ? (
