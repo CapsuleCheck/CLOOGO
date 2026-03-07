@@ -76,7 +76,20 @@ export default function ErrandDetail() {
       .catch(console.error);
   }, [errand?.status]);
 
-  // WebSocket connection
+  // Chat polling fallback (runs when canChat, every 5s)
+  useEffect(() => {
+    if (!canChat || !token) return;
+    const poll = async () => {
+      try {
+        const res = await axios.get(`${API}/errands/${id}/messages`, { headers: authHeader });
+        setMessages(res.data);
+      } catch (err) { /* silent */ }
+    };
+    const interval = setInterval(poll, 5000);
+    return () => clearInterval(interval);
+  }, [canChat, token, id]);
+
+  // WebSocket connection (best-effort; polling above is the reliable path)
   useEffect(() => {
     if (!errand || !canChat || !token) return;
     const wsBase = process.env.REACT_APP_BACKEND_URL
@@ -86,18 +99,20 @@ export default function ErrandDetail() {
     wsRef.current = ws;
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'message') {
-        setMessages(prev => prev.some(m => m.id === data.id) ? prev : [...prev, data]);
-      } else if (data.type === 'status_update') {
-        setErrand(prev => prev ? { ...prev, status: data.status } : prev);
-      } else if (data.type === 'offer_accepted') {
-        setErrand(data.errand);
-        toast.success('An offer has been accepted!');
-      } else if (data.type === 'payment_confirmed') {
-        setErrand(prev => prev ? { ...prev, status: 'in_progress' } : prev);
-        toast.success('Payment confirmed! Errand is now in progress.');
-      }
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'message') {
+          setMessages(prev => prev.some(m => m.id === data.id) ? prev : [...prev, data]);
+        } else if (data.type === 'status_update') {
+          setErrand(prev => prev ? { ...prev, status: data.status } : prev);
+        } else if (data.type === 'offer_accepted') {
+          setErrand(data.errand);
+          toast.success('An offer has been accepted!');
+        } else if (data.type === 'payment_confirmed') {
+          setErrand(prev => prev ? { ...prev, status: 'in_progress' } : prev);
+          toast.success('Payment confirmed! Errand is now in progress.');
+        }
+      } catch (e) { /* ignore parse errors */ }
     };
 
     return () => { ws.close(); };
@@ -177,11 +192,16 @@ export default function ErrandDetail() {
   const sendMessage = async () => {
     if (!newMsg.trim()) return;
     setSendingMsg(true);
+    const content = newMsg.trim();
+    setNewMsg('');
     try {
-      await axios.post(`${API}/errands/${id}/messages`, { content: newMsg.trim() }, { headers: authHeader });
-      setNewMsg('');
+      await axios.post(`${API}/errands/${id}/messages`, { content }, { headers: authHeader });
+      // Refresh messages immediately so sender sees their own message
+      const res = await axios.get(`${API}/errands/${id}/messages`, { headers: authHeader });
+      setMessages(res.data);
     } catch (err) {
       toast.error('Failed to send message');
+      setNewMsg(content); // restore on error
     } finally {
       setSendingMsg(false);
     }
