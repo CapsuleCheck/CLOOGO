@@ -88,10 +88,19 @@ Build an errand app similar to Uber but for running errands. A User on the app w
 - [ ] Group errands (multiple items from same area)
 - [ ] Admin dashboard
 
-## Next Tasks (Prioritized)
-1. Price counter-proposal flow (runner proposes different price, poster accepts/counter-proposes)
-2. Push notifications (web push via PWA after service worker is set up)
-3. AI-powered item description from uploaded image (vision model)
-4. Errand categories for filtering (any item type)
-5. Stripe Connect for direct runner payouts
-6. Backend refactoring: split server.py into routers/ and models/
+## Next Tasks / Backlog
+1. AI-powered item description from uploaded image (user deferred)
+2. Stripe Connect for direct runner payouts (complex - needs user's own Stripe account)
+3. Admin dashboard
+4. Email notifications (Resend/SendGrid) for offer and status changes
+5. Errand expiry / auto-cancel after N hours
+
+## Completed (Feb 2026 - Session 2)
+- PWA conversion (manifest, service worker, icons)
+- Stripe payment frontend flow (checkout → success polling)
+- Real-time chat (REST + polling fallback)
+- Price counter-proposal (poster counters → runner accepts counter)
+- Push notifications (VAPID keys, pywebpush, SW push handler, frontend subscribe)
+- Errand categories (chips in PostErrand, filter chips in Dashboard)
+- Runner earnings tracker (Profile page with total earned + pending payout)
+- Backend refactoring (models/__init__.py, auth.py - extracted from server.py)
