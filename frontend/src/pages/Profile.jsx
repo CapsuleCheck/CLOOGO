@@ -165,10 +165,10 @@ export default function Profile() {
           </div>
         )}
 
-        {/* User ID Info */}
+        {/* Member Info */}
         <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-1">User ID</p>
-          <p className="text-xs text-slate-500 font-mono break-all">{user?.id}</p>
+          <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-1">Account Email</p>
+          <p className="text-sm text-slate-600 font-medium">{user?.email}</p>
         </div>
       </div>
     </main>
