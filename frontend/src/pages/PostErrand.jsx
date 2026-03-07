@@ -133,7 +133,7 @@ export default function PostErrand() {
 
         {/* Step Content */}
         <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
-          {step === 1 && (
+        {step === 1 && (
             <div className="space-y-4">
               <div>
                 <label className={labelClass}>Item name <span className="text-red-500">*</span></label>
@@ -142,6 +142,28 @@ export default function PostErrand() {
                   value={form.item_description} onChange={e => update('item_description', e.target.value)} maxLength={100} />
                 <p className="text-xs text-slate-400 mt-1">{form.item_description.length}/100 characters</p>
               </div>
+
+              {/* Category chips */}
+              <div>
+                <label className={labelClass}>Category <span className="text-slate-400 font-normal">(optional)</span></label>
+                <div className="flex flex-wrap gap-2 mt-1" data-testid="category-chips">
+                  {['Grocery', 'Food & Drinks', 'Pharmacy', 'Electronics', 'Documents', 'Clothing', 'Other'].map(cat => (
+                    <button
+                      key={cat}
+                      type="button"
+                      data-testid={`category-chip-${cat.toLowerCase().replace(/\s+/g, '-').replace('&', 'and')}`}
+                      onClick={() => update('category', form.category === cat ? null : cat)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                        form.category === cat
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-200'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-400 hover:text-emerald-600'
+                      }`}>
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <label className={labelClass}>Additional details <span className="text-slate-400 font-normal">(optional)</span></label>
                 <textarea data-testid="post-item-details-input" className={`${inputClass} h-24 resize-none`}

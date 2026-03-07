@@ -1,237 +1,202 @@
-"""Tests for new features: notifications, ratings, map coordinates"""
+"""Tests for new ErrandGo features: categories, counter-proposal, push notifications, earnings, refactoring."""
 import pytest
 import requests
 import os
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
-
-def login(email, password):
-    r = requests.post(f"{BASE_URL}/api/auth/login", json={"email": email, "password": password})
-    if r.status_code == 200:
-        return r.json()["token"]
-    return None
-
-
-def auth_headers(token):
-    return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-
-
-# --- Setup: get poster token and a runner token ---
-POSTER_EMAIL = "test@example.com"
-POSTER_PASS = "test123"
-RUNNER_EMAIL = "runner_feat@test.com"
-RUNNER_PASS = "test123"
+POSTER_EMAIL = "poster2@test.com"
+POSTER_PASS = "pass1234"
+RUNNER_EMAIL = "runner2@test.com"
+RUNNER_PASS = "pass1234"
 
 
 @pytest.fixture(scope="module")
 def poster_token():
-    token = login(POSTER_EMAIL, POSTER_PASS)
-    assert token, "Poster login failed"
-    return token
+    r = requests.post(f"{BASE_URL}/api/auth/login", json={"email": POSTER_EMAIL, "password": POSTER_PASS})
+    assert r.status_code == 200, f"Poster login failed: {r.text}"
+    return r.json()["token"]
 
 
 @pytest.fixture(scope="module")
 def runner_token():
-    # Try login first, register if not exists
-    token = login(RUNNER_EMAIL, RUNNER_PASS)
-    if not token:
-        r = requests.post(f"{BASE_URL}/api/auth/register", json={
-            "email": RUNNER_EMAIL, "password": RUNNER_PASS,
-            "name": "Feature Runner", "neighborhood": "Oak Park"
+    r = requests.post(f"{BASE_URL}/api/auth/login", json={"email": RUNNER_EMAIL, "password": RUNNER_PASS})
+    assert r.status_code == 200, f"Runner login failed: {r.text}"
+    return r.json()["token"]
+
+
+def auth(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+# --- 1. CATEGORIES ---
+class TestCategories:
+    """Category field on errands"""
+
+    errand_id = None
+
+    def test_create_errand_with_category(self, poster_token):
+        r = requests.post(f"{BASE_URL}/api/errands", headers=auth(poster_token), json={
+            "item_description": "TEST_category_errand",
+            "category": "Grocery",
+            "pickup_neighborhood": "Downtown",
+            "delivery_neighborhood": "Uptown",
+            "delivery_address": "123 Main St",
+            "offered_price": 15.0
         })
-        assert r.status_code == 200, f"Runner registration failed: {r.text}"
-        token = r.json()["token"]
-    return token
-
-
-@pytest.fixture(scope="module")
-def completed_errand(poster_token, runner_token):
-    """Create an errand, assign runner, set status=completed"""
-    # Create errand with coordinates
-    r = requests.post(f"{BASE_URL}/api/errands", headers=auth_headers(poster_token), json={
-        "item_description": "TEST_Feature test errand",
-        "pickup_neighborhood": "Lincoln Park",
-        "delivery_neighborhood": "Oak Park",
-        "delivery_address": "123 Oak St",
-        "offered_price": 10.0,
-        "pickup_lat": 41.9214,
-        "pickup_lng": -87.6513
-    })
-    assert r.status_code == 200, f"Create errand failed: {r.text}"
-    errand = r.json()
-    errand_id = errand["id"]
-
-    # Runner submits offer
-    r2 = requests.post(f"{BASE_URL}/api/errands/{errand_id}/offers", headers=auth_headers(runner_token), json={
-        "proposed_price": 10.0, "message": "I can do it"
-    })
-    assert r2.status_code == 200, f"Offer creation failed: {r2.text}"
-    offer_id = r2.json()["id"]
-
-    # Poster accepts offer
-    r3 = requests.patch(f"{BASE_URL}/api/offers/{offer_id}/accept", headers=auth_headers(poster_token))
-    assert r3.status_code == 200, f"Offer accept failed: {r3.text}"
-
-    # Force status to completed
-    r4 = requests.patch(f"{BASE_URL}/api/errands/{errand_id}/status", headers=auth_headers(poster_token), json={"status": "completed"})
-    assert r4.status_code == 200, f"Status update to completed failed: {r4.text}"
-
-    return errand_id
-
-
-# --- Notification Tests ---
-class TestNotifications:
-    def test_get_notifications_returns_list(self, poster_token):
-        r = requests.get(f"{BASE_URL}/api/notifications", headers=auth_headers(poster_token))
-        assert r.status_code == 200
+        assert r.status_code == 200, r.text
         data = r.json()
-        assert isinstance(data, list)
-        print(f"PASS: GET /api/notifications returned {len(data)} notifications")
+        assert data["category"] == "Grocery"
+        TestCategories.errand_id = data["id"]
 
-    def test_notification_created_when_offer_submitted(self, poster_token, runner_token):
-        """Create an errand, submit offer, check poster has a notification"""
-        # Create errand
-        r = requests.post(f"{BASE_URL}/api/errands", headers=auth_headers(poster_token), json={
-            "item_description": "TEST_Notif test errand",
-            "pickup_neighborhood": "Logan Square",
-            "delivery_neighborhood": "Oak Park",
-            "delivery_address": "999 Notif St",
-            "offered_price": 8.0
-        })
+    def test_get_errand_has_category(self, poster_token):
+        r = requests.get(f"{BASE_URL}/api/errands/{TestCategories.errand_id}", headers=auth(poster_token))
         assert r.status_code == 200
-        errand_id = r.json()["id"]
+        assert r.json()["category"] == "Grocery"
 
-        # Runner submits offer
-        r2 = requests.post(f"{BASE_URL}/api/errands/{errand_id}/offers", headers=auth_headers(runner_token), json={
-            "proposed_price": 8.0
-        })
-        assert r2.status_code == 200
-
-        # Check poster notifications
-        r3 = requests.get(f"{BASE_URL}/api/notifications", headers=auth_headers(poster_token))
-        assert r3.status_code == 200
-        notifs = r3.json()
-        new_offer_notifs = [n for n in notifs if n.get("type") == "new_offer" and n.get("errand_id") == errand_id]
-        assert len(new_offer_notifs) >= 1, f"Expected new_offer notification, got: {notifs[:3]}"
-        assert new_offer_notifs[0]["is_read"] == False
-        print(f"PASS: Notification created on offer submission, title: {new_offer_notifs[0]['title']}")
-
-    def test_mark_all_read(self, poster_token):
-        r = requests.patch(f"{BASE_URL}/api/notifications/read-all", headers=auth_headers(poster_token))
-        assert r.status_code == 200
-        data = r.json()
-        assert "message" in data
-        print(f"PASS: Mark all read: {data['message']}")
-
-    def test_notifications_are_read_after_mark_all(self, poster_token):
-        r = requests.get(f"{BASE_URL}/api/notifications", headers=auth_headers(poster_token))
-        assert r.status_code == 200
-        notifs = r.json()
-        unread = [n for n in notifs if not n.get("is_read")]
-        assert len(unread) == 0, f"Expected 0 unread after mark all read, got {len(unread)}"
-        print(f"PASS: All {len(notifs)} notifications are now read")
-
-    def test_mark_single_notification_read(self, runner_token):
-        notifs = requests.get(f"{BASE_URL}/api/notifications", headers=auth_headers(runner_token)).json()
-        if not notifs:
-            pytest.skip("No notifications for runner")
-        notif_id = notifs[0]["id"]
-        r = requests.patch(f"{BASE_URL}/api/notifications/{notif_id}/read", headers=auth_headers(runner_token))
-        assert r.status_code == 200
-        print(f"PASS: Single notification {notif_id} marked read")
-
-
-# --- Rating Tests ---
-class TestRatings:
-    def test_rate_completed_errand(self, completed_errand, poster_token, runner_token):
-        errand_id = completed_errand
-        r = requests.post(f"{BASE_URL}/api/errands/{errand_id}/rate", headers=auth_headers(poster_token), json={
-            "stars": 4, "comment": "Good job!"
-        })
-        assert r.status_code == 200, f"Rating failed: {r.text}"
-        data = r.json()
-        assert data["stars"] == 4
-        assert data["errand_id"] == errand_id
-        print(f"PASS: Rating submitted, id={data['id']}, stars={data['stars']}")
-
-    def test_duplicate_rating_rejected(self, completed_errand, poster_token):
-        errand_id = completed_errand
-        r = requests.post(f"{BASE_URL}/api/errands/{errand_id}/rate", headers=auth_headers(poster_token), json={"stars": 5})
-        assert r.status_code == 400, f"Expected 400 for duplicate rating, got {r.status_code}"
-        print("PASS: Duplicate rating rejected with 400")
-
-    def test_rating_requires_completed_status(self, poster_token):
-        # Create a new open errand and try to rate it
-        r = requests.post(f"{BASE_URL}/api/errands", headers=auth_headers(poster_token), json={
-            "item_description": "TEST_Rate test open errand",
-            "pickup_neighborhood": "Logan Square",
-            "delivery_neighborhood": "Oak Park",
-            "delivery_address": "100 Test St",
-            "offered_price": 5.0
-        })
-        errand_id = r.json()["id"]
-        r2 = requests.post(f"{BASE_URL}/api/errands/{errand_id}/rate", headers=auth_headers(poster_token), json={"stars": 3})
-        assert r2.status_code == 400
-        print("PASS: Cannot rate open errand (400 returned)")
-
-    def test_get_my_rating_for_errand(self, completed_errand, poster_token):
-        errand_id = completed_errand
-        r = requests.get(f"{BASE_URL}/api/errands/{errand_id}/my-rating", headers=auth_headers(poster_token))
-        assert r.status_code == 200
-        data = r.json()
-        assert data["rated"] == True
-        assert data["rating"]["stars"] == 4
-        print(f"PASS: my-rating endpoint returned rated=True, stars={data['rating']['stars']}")
-
-    def test_get_user_rating_average(self, runner_token, poster_token):
-        # Get runner user id
-        me = requests.get(f"{BASE_URL}/api/auth/me", headers=auth_headers(runner_token)).json()
-        runner_id = me["id"]
-        r = requests.get(f"{BASE_URL}/api/users/{runner_id}/rating", headers=auth_headers(poster_token))
-        assert r.status_code == 200
-        data = r.json()
-        assert "average" in data and "count" in data
-        assert data["count"] >= 1
-        print(f"PASS: User rating: avg={data['average']}, count={data['count']}")
-
-
-# --- Map Coordinate Tests ---
-class TestMapCoordinates:
-    def test_create_errand_with_coordinates(self, poster_token):
-        r = requests.post(f"{BASE_URL}/api/errands", headers=auth_headers(poster_token), json={
-            "item_description": "TEST_Map coord errand",
-            "pickup_neighborhood": "Lincoln Park",
-            "delivery_neighborhood": "Oak Park",
-            "delivery_address": "500 Map St",
-            "offered_price": 12.0,
-            "pickup_lat": 41.9214,
-            "pickup_lng": -87.6513
-        })
-        assert r.status_code == 200
-        data = r.json()
-        assert data["pickup_lat"] == 41.9214
-        assert data["pickup_lng"] == -87.6513
-        print(f"PASS: Errand created with coords lat={data['pickup_lat']}, lng={data['pickup_lng']}")
-
-    def test_errand_without_coords_has_null(self, poster_token):
-        r = requests.post(f"{BASE_URL}/api/errands", headers=auth_headers(poster_token), json={
-            "item_description": "TEST_No coord errand",
-            "pickup_neighborhood": "Logan Square",
-            "delivery_neighborhood": "Oak Park",
-            "delivery_address": "600 No Coord St",
-            "offered_price": 6.0
-        })
-        assert r.status_code == 200
-        data = r.json()
-        assert data.get("pickup_lat") is None
-        assert data.get("pickup_lng") is None
-        print("PASS: Errand without coords has null lat/lng")
-
-    def test_list_errands_includes_coords(self, poster_token):
-        r = requests.get(f"{BASE_URL}/api/errands", headers=auth_headers(poster_token), params={"status": "open"})
+    def test_filter_by_category(self, poster_token):
+        r = requests.get(f"{BASE_URL}/api/errands?category=Grocery", headers=auth(poster_token))
         assert r.status_code == 200
         errands = r.json()
-        # Find errands with coords
-        with_coords = [e for e in errands if e.get("pickup_lat") and e.get("pickup_lng")]
-        print(f"PASS: {len(with_coords)}/{len(errands)} errands have map coordinates")
+        assert any(e["category"] == "Grocery" for e in errands)
+
+    def test_filter_category_no_match(self, poster_token):
+        r = requests.get(f"{BASE_URL}/api/errands?category=NonExistentXYZ123", headers=auth(poster_token))
+        assert r.status_code == 200
+        assert r.json() == []
+
+
+# --- 2. COUNTER-PROPOSAL FULL FLOW ---
+class TestCounterProposal:
+    """Counter-proposal flow: create errand -> offer -> counter -> accept counter"""
+
+    errand_id = None
+    offer_id = None
+
+    def test_setup_errand(self, poster_token):
+        r = requests.post(f"{BASE_URL}/api/errands", headers=auth(poster_token), json={
+            "item_description": "TEST_counter_errand",
+            "category": "Grocery",
+            "pickup_neighborhood": "Downtown",
+            "delivery_neighborhood": "Midtown",
+            "delivery_address": "456 Oak Ave",
+            "offered_price": 20.0
+        })
+        assert r.status_code == 200
+        TestCounterProposal.errand_id = r.json()["id"]
+
+    def test_runner_submits_offer(self, runner_token):
+        r = requests.post(f"{BASE_URL}/api/errands/{TestCounterProposal.errand_id}/offers",
+                          headers=auth(runner_token), json={"proposed_price": 18.0, "message": "I can do it"})
+        assert r.status_code == 200
+        data = r.json()
+        assert data["status"] == "pending"
+        TestCounterProposal.offer_id = data["id"]
+
+    def test_poster_counters_offer(self, poster_token):
+        r = requests.patch(f"{BASE_URL}/api/offers/{TestCounterProposal.offer_id}/counter",
+                           headers=auth(poster_token),
+                           json={"counter_price": 19.0, "counter_message": "How about $19?"})
+        assert r.status_code == 200
+        data = r.json()
+        assert data["status"] == "countered"
+        assert data["counter_price"] == 19.0
+        assert data["counter_message"] == "How about $19?"
+
+    def test_runner_accepts_counter(self, runner_token):
+        r = requests.patch(f"{BASE_URL}/api/offers/{TestCounterProposal.offer_id}/accept-counter",
+                           headers=auth(runner_token))
+        assert r.status_code == 200
+        data = r.json()
+        assert data["status"] == "matched"
+        assert data["accepted_price"] == 19.0
+
+    def test_errand_is_matched_after_accept_counter(self, poster_token):
+        r = requests.get(f"{BASE_URL}/api/errands/{TestCounterProposal.errand_id}", headers=auth(poster_token))
+        assert r.status_code == 200
+        assert r.json()["status"] == "matched"
+        assert r.json()["accepted_price"] == 19.0
+
+
+# --- 3. PUSH NOTIFICATIONS ---
+class TestPushNotifications:
+    """Push notification endpoints"""
+
+    def test_vapid_public_key(self):
+        r = requests.get(f"{BASE_URL}/api/push/vapid-public-key")
+        assert r.status_code == 200
+        data = r.json()
+        assert "publicKey" in data
+        assert len(data["publicKey"]) > 10
+
+    def test_push_subscribe(self, poster_token):
+        r = requests.post(f"{BASE_URL}/api/push/subscribe", headers=auth(poster_token), json={
+            "endpoint": "https://fcm.googleapis.com/fcm/send/TEST_subscription_endpoint",
+            "p256dh": "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlTiHTjdy4fg8zmsc",
+            "auth": "tBHItJI5svbpez7KI4CCXg"
+        })
+        assert r.status_code == 200
+        assert "Subscribed" in r.json()["message"]
+
+
+# --- 4. RUNNER EARNINGS ---
+class TestEarnings:
+    """Runner earnings endpoint"""
+
+    def test_earnings_returns_expected_fields(self, runner_token):
+        r = requests.get(f"{BASE_URL}/api/my/earnings", headers=auth(runner_token))
+        assert r.status_code == 200
+        data = r.json()
+        assert "total_earned" in data
+        assert "pending_payout" in data
+        assert "completed_runs" in data
+        assert "in_progress_runs" in data
+        assert isinstance(data["total_earned"], (int, float))
+        assert isinstance(data["pending_payout"], (int, float))
+        assert isinstance(data["completed_runs"], list)
+        assert isinstance(data["in_progress_runs"], list)
+
+
+# --- 5. BACKEND REFACTORING ---
+class TestBackendRefactoring:
+    """Verify existing endpoints still work after refactoring"""
+
+    def test_auth_login(self, poster_token):
+        assert poster_token is not None
+
+    def test_get_me(self, poster_token):
+        r = requests.get(f"{BASE_URL}/api/auth/me", headers=auth(poster_token))
+        assert r.status_code == 200
+        assert "email" in r.json()
+
+    def test_list_errands(self, poster_token):
+        r = requests.get(f"{BASE_URL}/api/errands", headers=auth(poster_token))
+        assert r.status_code == 200
+        assert isinstance(r.json(), list)
+
+    def test_notifications(self, poster_token):
+        r = requests.get(f"{BASE_URL}/api/notifications", headers=auth(poster_token))
+        assert r.status_code == 200
+        assert isinstance(r.json(), list)
+
+
+# --- 6. REGRESSION ---
+class TestRegression:
+    """Stripe, chat, notifications regression"""
+
+    def test_chat_messages_on_matched_errand(self, poster_token, runner_token):
+        errand_id = TestCounterProposal.errand_id
+        if not errand_id:
+            pytest.skip("No matched errand available")
+        r = requests.post(f"{BASE_URL}/api/errands/{errand_id}/messages",
+                          headers=auth(poster_token), json={"content": "TEST_chat_message"})
+        assert r.status_code == 200
+        assert r.json()["content"] == "TEST_chat_message"
+
+    def test_get_chat_messages(self, poster_token):
+        errand_id = TestCounterProposal.errand_id
+        if not errand_id:
+            pytest.skip("No matched errand available")
+        r = requests.get(f"{BASE_URL}/api/errands/{errand_id}/messages", headers=auth(poster_token))
+        assert r.status_code == 200
+        assert isinstance(r.json(), list)

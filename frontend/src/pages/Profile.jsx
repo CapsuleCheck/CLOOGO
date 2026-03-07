@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, MapPin, Package, Truck, CheckCircle, Edit2, Save, X, Star } from 'lucide-react';
+import { User, MapPin, Package, Truck, CheckCircle, Edit2, Save, X, Star, DollarSign, Clock } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
@@ -14,17 +14,19 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [stats, setStats] = useState(null);
   const [userRating, setUserRating] = useState(null);
+  const [earnings, setEarnings] = useState(null);
 
   useEffect(() => {
     if (user) {
       setForm({ name: user.name, neighborhood: user.neighborhood });
-      // Fetch stats and rating in parallel
       Promise.all([
         axios.get(`${API}/my/stats`, { headers: authHeader }),
         axios.get(`${API}/users/${user.id}/rating`, { headers: authHeader }),
-      ]).then(([statsRes, ratingRes]) => {
+        axios.get(`${API}/my/earnings`, { headers: authHeader }),
+      ]).then(([statsRes, ratingRes, earningsRes]) => {
         setStats(statsRes.data);
         setUserRating(ratingRes.data);
+        setEarnings(earningsRes.data);
       }).catch(console.error);
     }
   }, [user]);
@@ -185,6 +187,61 @@ export default function Profile() {
           <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-1">Account Email</p>
           <p className="text-sm text-slate-600 font-medium">{user?.email}</p>
         </div>
+
+        {/* Earnings Section */}
+        {earnings && (
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6" data-testid="earnings-section">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center">
+                <DollarSign className="w-4 h-4 text-emerald-600" />
+              </div>
+              <h2 className="font-extrabold text-slate-900 font-['Manrope'] text-base">Runner Earnings</h2>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100">
+                <p className="text-xs text-emerald-600 font-semibold uppercase tracking-wide mb-1">Total Earned</p>
+                <p className="text-2xl font-extrabold text-emerald-700 font-['Manrope']" data-testid="total-earned">
+                  ${earnings.total_earned.toFixed(2)}
+                </p>
+              </div>
+              <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Clock className="w-3 h-3 text-amber-600" />
+                  <p className="text-xs text-amber-600 font-semibold uppercase tracking-wide">Pending Payout</p>
+                </div>
+                <p className="text-2xl font-extrabold text-amber-700 font-['Manrope']" data-testid="pending-payout">
+                  ${earnings.pending_payout.toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            {earnings.completed_runs.length > 0 && (
+              <div>
+                <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-3">Recent Completed Runs</p>
+                <div className="space-y-2">
+                  {earnings.completed_runs.slice(0, 5).map(run => (
+                    <div key={run.id} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                      <div>
+                        <p className="text-sm font-medium text-slate-800 truncate max-w-[180px]">{run.item_description}</p>
+                        <p className="text-xs text-slate-400">{run.poster_name} · {run.delivery_neighborhood}</p>
+                      </div>
+                      <p className="text-sm font-extrabold text-emerald-700 font-['Manrope']">
+                        +${(run.accepted_price || run.offered_price || 0).toFixed(2)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {earnings.completed_runs.length === 0 && earnings.total_earned === 0 && (
+              <p className="text-sm text-slate-400 text-center py-4">
+                Complete runs to start earning. Your earnings will show here.
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </main>
   );

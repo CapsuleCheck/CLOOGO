@@ -18,12 +18,12 @@ const navLinks = [
 
 export default function Navbar() {
   const { user, logout } = useAuth();
-  const { notifications, unreadCount, markAllRead, markRead } = useNotifications();
+  const { notifications, unreadCount, markAllRead, markRead, pushEnabled, requestPushPermission } = useNotifications();
   const location = useLocation();
   const navigate = useNavigate();
 
   const NOTIF_ICONS = {
-    new_offer: '💬', offer_accepted: '✅', offer_rejected: '❌',
+    new_offer: '💬', offer_accepted: '✅', offer_rejected: '❌', offer_countered: '🔄',
     payment_confirmed: '💰', errand_delivered: '📦', new_message: '✉️', new_rating: '⭐',
   };
 
@@ -82,11 +82,20 @@ export default function Navbar() {
                 <PopoverContent align="end" className="w-80 p-0 shadow-xl border-slate-100" data-testid="notifications-dropdown">
                   <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                     <h3 className="font-bold text-slate-900 font-['Manrope'] text-sm">Notifications</h3>
-                    {unreadCount > 0 && (
-                      <button onClick={markAllRead} className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium">
-                        <CheckCheck className="w-3.5 h-3.5" /> Mark all read
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {!pushEnabled && 'Notification' in window && Notification.permission !== 'denied' && (
+                        <button onClick={requestPushPermission}
+                          data-testid="enable-push-btn"
+                          className="text-xs bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-medium px-2 py-1 rounded-md transition-colors">
+                          Enable push
+                        </button>
+                      )}
+                      {unreadCount > 0 && (
+                        <button onClick={markAllRead} className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700 font-medium">
+                          <CheckCheck className="w-3.5 h-3.5" /> Mark all read
+                        </button>
+                      )}
+                    </div>
                   </div>
                   <div className="max-h-80 overflow-y-auto">
                     {notifications.length === 0 ? (

@@ -15,7 +15,6 @@ const STATIC_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Use addAll with individual error handling so missing files don't break install
       return Promise.allSettled(
         STATIC_ASSETS.map((url) => cache.add(url).catch(() => null))
       );
@@ -41,10 +40,8 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests and browser extensions
   if (request.method !== 'GET' || url.protocol === 'chrome-extension:') return;
 
-  // API calls: network-first, no caching
   if (url.pathname.startsWith('/api/') || url.hostname !== self.location.hostname) {
     event.respondWith(
       fetch(request).catch(() => {
@@ -57,7 +54,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: cache-first with network fallback
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;
@@ -69,10 +65,51 @@ self.addEventListener('fetch', (event) => {
         return response;
       });
     }).catch(() => {
-      // Offline fallback for navigation requests: serve cached root
       if (request.mode === 'navigate') {
         return caches.match('/');
       }
+    })
+  );
+});
+
+// Push: show browser notification
+self.addEventListener('push', (event) => {
+  let data = { title: 'ErrandGo', body: 'You have a new update', errand_id: null };
+  try {
+    if (event.data) data = JSON.parse(event.data.text());
+  } catch (e) {}
+
+  const options = {
+    body: data.body,
+    icon: data.icon || '/icons/icon-192x192.png',
+    badge: data.badge || '/icons/favicon-32x32.png',
+    data: { errand_id: data.errand_id },
+    vibrate: [100, 50, 100],
+    actions: data.errand_id
+      ? [{ action: 'view', title: 'View Errand' }]
+      : []
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// Notification click: navigate to errand or root
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const errandId = event.notification.data?.errand_id;
+  const url = errandId ? `/errands/${errandId}` : '/dashboard';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(url);
     })
   );
 });

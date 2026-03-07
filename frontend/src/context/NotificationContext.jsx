@@ -4,10 +4,19 @@ import { useAuth } from './AuthContext';
 
 const NotificationContext = createContext(null);
 
+// Convert VAPID public key from base64url to Uint8Array
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
 export const NotificationProvider = ({ children }) => {
   const { token, authHeader, API, user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pushEnabled, setPushEnabled] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
     if (!token) return;
@@ -24,6 +33,46 @@ export const NotificationProvider = ({ children }) => {
     if (user) fetchNotifications();
   }, [user, fetchNotifications]);
 
+  // Subscribe to web push notifications
+  const subscribeToPush = useCallback(async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const keyRes = await axios.get(`${API}/push/vapid-public-key`);
+      const applicationServerKey = urlBase64ToUint8Array(keyRes.data.publicKey);
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey
+      });
+      const subJson = sub.toJSON();
+      await axios.post(`${API}/push/subscribe`, {
+        endpoint: subJson.endpoint,
+        p256dh: subJson.keys.p256dh,
+        auth: subJson.keys.auth
+      }, { headers: authHeader });
+      setPushEnabled(true);
+    } catch (err) {
+      console.warn('Push subscription failed:', err);
+    }
+  }, [API, authHeader]);
+
+  const requestPushPermission = useCallback(async () => {
+    if (!('Notification' in window)) return;
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      await subscribeToPush();
+    }
+    return permission;
+  }, [subscribeToPush]);
+
+  // Auto-subscribe if permission already granted
+  useEffect(() => {
+    if (!user || !token) return;
+    if ('Notification' in window && Notification.permission === 'granted') {
+      subscribeToPush();
+    }
+  }, [user, token, subscribeToPush]);
+
   // Real-time WebSocket for notifications, with polling fallback
   useEffect(() => {
     if (!token || !user) return;
@@ -37,7 +86,7 @@ export const NotificationProvider = ({ children }) => {
 
     const startPolling = () => {
       if (!pollInterval) {
-        pollInterval = setInterval(fetchNotifications, 15000); // poll every 15s as fallback
+        pollInterval = setInterval(fetchNotifications, 15000);
       }
     };
 
@@ -89,7 +138,10 @@ export const NotificationProvider = ({ children }) => {
   };
 
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount, markAllRead, markRead, fetchNotifications }}>
+    <NotificationContext.Provider value={{
+      notifications, unreadCount, markAllRead, markRead, fetchNotifications,
+      pushEnabled, requestPushPermission
+    }}>
       {children}
     </NotificationContext.Provider>
   );

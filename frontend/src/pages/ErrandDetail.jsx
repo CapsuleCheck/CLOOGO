@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import {
   MapPin, Package, DollarSign, Clock, Send, CheckCircle,
-  ArrowLeft, User, MessageCircle, CreditCard, AlertCircle, Truck
+  ArrowLeft, User, MessageCircle, CreditCard, AlertCircle, Truck, RefreshCw
 } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
@@ -35,6 +35,8 @@ export default function ErrandDetail() {
   const [ratingForm, setRatingForm] = useState({ stars: 0, comment: '' });
   const [ratingSubmitted, setRatingSubmitted] = useState(false);
   const [submittingRating, setSubmittingRating] = useState(false);
+  const [counteringOfferId, setCounteringOfferId] = useState(null);
+  const [counterForm, setCounterForm] = useState({ counter_price: '', counter_message: '' });
 
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -44,6 +46,7 @@ export default function ErrandDetail() {
   const isRunner = errand && user?.id === errand.runner_id;
   const canChat = errand && ['matched', 'in_progress', 'completed'].includes(errand.status) && (isPoster || isRunner);
   const hasOffer = offers.some(o => o.runner_id === user?.id && o.status === 'pending');
+  const hasCounterOffer = offers.some(o => o.runner_id === user?.id && o.status === 'countered');
 
   const fetchAll = async () => {
     try {
@@ -186,6 +189,35 @@ export default function ErrandDetail() {
       toast.success('Offer rejected');
     } catch (err) {
       toast.error('Failed to reject offer');
+    }
+  };
+
+  const submitCounter = async (offerId) => {
+    if (!counterForm.counter_price || parseFloat(counterForm.counter_price) <= 0) {
+      toast.error('Enter a valid counter price'); return;
+    }
+    try {
+      const res = await axios.patch(`${API}/offers/${offerId}/counter`,
+        { counter_price: parseFloat(counterForm.counter_price), counter_message: counterForm.counter_message || null },
+        { headers: authHeader }
+      );
+      setOffers(prev => prev.map(o => o.id === offerId ? res.data : o));
+      setCounteringOfferId(null);
+      setCounterForm({ counter_price: '', counter_message: '' });
+      toast.success('Counter offer sent!');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to send counter offer');
+    }
+  };
+
+  const acceptCounter = async (offerId) => {
+    try {
+      const res = await axios.patch(`${API}/offers/${offerId}/accept-counter`, {}, { headers: authHeader });
+      setErrand(res.data);
+      setOffers(prev => prev.map(o => ({ ...o, status: o.id === offerId ? 'accepted' : 'rejected' })));
+      toast.success('Counter offer accepted! Awaiting payment.');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Failed to accept counter offer');
     }
   };
 
@@ -432,7 +464,13 @@ export default function ErrandDetail() {
               </div>
             )}
 
-            {hasOffer && !isPoster && (
+            {hasCounterOffer && !isPoster && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 text-sm text-amber-700 font-medium flex items-center gap-2">
+                <RefreshCw className="w-4 h-4" />
+                You received a counter offer! See below to accept or ignore.
+              </div>
+            )}
+            {hasOffer && !isPoster && !hasCounterOffer && (
               <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 mb-5 text-sm text-emerald-700 font-medium">
                 You have a pending offer on this errand.
               </div>
@@ -448,6 +486,7 @@ export default function ErrandDetail() {
                     className={`rounded-xl border p-4 transition-all ${
                       offer.status === 'accepted' ? 'border-emerald-200 bg-emerald-50' :
                       offer.status === 'rejected' ? 'border-slate-100 bg-slate-50 opacity-60' :
+                      offer.status === 'countered' ? 'border-amber-200 bg-amber-50' :
                       'border-slate-200 bg-white'
                     }`}>
                     <div className="flex items-start justify-between gap-3">
@@ -467,6 +506,7 @@ export default function ErrandDetail() {
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${
                           offer.status === 'accepted' ? 'bg-emerald-100 text-emerald-700' :
                           offer.status === 'rejected' ? 'bg-slate-100 text-slate-500' :
+                          offer.status === 'countered' ? 'bg-amber-100 text-amber-700' :
                           'bg-blue-50 text-blue-600'
                         }`}>{offer.status}</span>
                       </div>
@@ -474,18 +514,73 @@ export default function ErrandDetail() {
                     {offer.message && (
                       <p className="text-sm text-slate-600 mt-2 italic">"{offer.message}"</p>
                     )}
+
+                    {/* Counter offer received — for runner */}
+                    {!isPoster && offer.runner_id === user?.id && offer.status === 'countered' && (
+                      <div className="mt-3 p-3 bg-white rounded-xl border border-amber-200">
+                        <div className="flex items-center gap-2 mb-1">
+                          <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
+                          <p className="text-xs font-bold text-amber-700">Counter offer received</p>
+                        </div>
+                        <p className="font-extrabold text-slate-900 text-base">
+                          ${offer.counter_price?.toFixed(2)}
+                        </p>
+                        {offer.counter_message && (
+                          <p className="text-xs text-slate-500 italic mt-1">"{offer.counter_message}"</p>
+                        )}
+                        <button data-testid={`accept-counter-btn-${offer.id}`}
+                          onClick={() => acceptCounter(offer.id)}
+                          className="mt-2 w-full rounded-full bg-amber-500 py-2 text-white text-xs font-bold hover:bg-amber-600 transition-all">
+                          Accept ${offer.counter_price?.toFixed(2)}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Poster actions on pending offer */}
                     {isPoster && offer.status === 'pending' && errand.status === 'open' && (
-                      <div className="flex gap-2 mt-3">
-                        <button data-testid={`accept-offer-btn-${offer.id}`}
-                          onClick={() => acceptOffer(offer.id)}
-                          className="flex-1 rounded-full bg-emerald-600 py-2 text-white text-xs font-bold hover:bg-emerald-700 transition-all">
-                          Accept Offer
-                        </button>
-                        <button data-testid={`reject-offer-btn-${offer.id}`}
-                          onClick={() => rejectOffer(offer.id)}
-                          className="flex-1 rounded-full border border-slate-200 py-2 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-all">
-                          Reject
-                        </button>
+                      <div>
+                        <div className="flex gap-2 mt-3">
+                          <button data-testid={`accept-offer-btn-${offer.id}`}
+                            onClick={() => acceptOffer(offer.id)}
+                            className="flex-1 rounded-full bg-emerald-600 py-2 text-white text-xs font-bold hover:bg-emerald-700 transition-all">
+                            Accept
+                          </button>
+                          <button data-testid={`counter-offer-btn-${offer.id}`}
+                            onClick={() => setCounteringOfferId(counteringOfferId === offer.id ? null : offer.id)}
+                            className="flex-1 rounded-full bg-amber-100 border border-amber-300 py-2 text-amber-700 text-xs font-bold hover:bg-amber-200 transition-all">
+                            Counter
+                          </button>
+                          <button data-testid={`reject-offer-btn-${offer.id}`}
+                            onClick={() => rejectOffer(offer.id)}
+                            className="flex-1 rounded-full border border-slate-200 py-2 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-all">
+                            Reject
+                          </button>
+                        </div>
+                        {/* Inline counter form */}
+                        {counteringOfferId === offer.id && (
+                          <div className="mt-3 p-3 bg-amber-50 rounded-xl border border-amber-200 space-y-2">
+                            <p className="text-xs font-semibold text-amber-700">Propose a counter price</p>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
+                              <input data-testid="counter-price-input"
+                                type="number" min="0.50" step="0.50"
+                                className="w-full pl-7 pr-4 py-2.5 rounded-xl border border-amber-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                placeholder="Your counter price"
+                                value={counterForm.counter_price}
+                                onChange={e => setCounterForm(f => ({ ...f, counter_price: e.target.value }))} />
+                            </div>
+                            <input data-testid="counter-message-input"
+                              className="w-full rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 placeholder:text-slate-400"
+                              placeholder="Optional message..."
+                              value={counterForm.counter_message}
+                              onChange={e => setCounterForm(f => ({ ...f, counter_message: e.target.value }))} />
+                            <button data-testid={`submit-counter-btn-${offer.id}`}
+                              onClick={() => submitCounter(offer.id)}
+                              className="w-full rounded-full bg-amber-500 py-2 text-white text-xs font-bold hover:bg-amber-600 transition-all">
+                              Send Counter Offer
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

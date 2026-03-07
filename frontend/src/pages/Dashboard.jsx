@@ -164,13 +164,17 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterNeighborhood, setFilterNeighborhood] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
   const [viewMode, setViewMode] = useState('list');
+
+  const CATEGORIES = ['Grocery', 'Food & Drinks', 'Pharmacy', 'Electronics', 'Documents', 'Clothing', 'Other'];
 
   const fetchErrands = async () => {
     setLoading(true);
     try {
       const params = { status: 'open' };
       if (filterNeighborhood) params.pickup = filterNeighborhood;
+      if (filterCategory) params.category = filterCategory;
       const res = await axios.get(`${API}/errands`, { headers: authHeader, params });
       setErrands(res.data);
     } catch (err) {
@@ -180,7 +184,7 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => { fetchErrands(); }, [filterNeighborhood]);
+  useEffect(() => { fetchErrands(); }, [filterNeighborhood, filterCategory]);
 
   const filtered = errands.filter(e =>
     !search || e.item_description.toLowerCase().includes(search.toLowerCase()) ||
@@ -232,6 +236,28 @@ export default function Dashboard() {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Category filter chips */}
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-6 -mx-1 px-1 scrollbar-hide" data-testid="category-filter-chips">
+          <button
+            data-testid="category-filter-all"
+            onClick={() => setFilterCategory('')}
+            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+              !filterCategory ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+            }`}>
+            All
+          </button>
+          {CATEGORIES.map(cat => (
+            <button key={cat}
+              data-testid={`category-filter-${cat.toLowerCase().replace(/\s+/g, '-').replace('&', 'and')}`}
+              onClick={() => setFilterCategory(filterCategory === cat ? '' : cat)}
+              className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                filterCategory === cat ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-400 hover:text-emerald-600'
+              }`}>
+              {cat}
+            </button>
+          ))}
         </div>
 
         {/* Quick post action */}

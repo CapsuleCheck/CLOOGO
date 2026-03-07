@@ -5,15 +5,25 @@ from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import json
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field
 from typing import List, Optional, Dict
 import uuid
-from datetime import datetime, timezone, timedelta
-from passlib.context import CryptContext
-from jose import JWTError, jwt
+from datetime import datetime, timezone
 from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+import asyncio
+
+# Local modules
+from models import (
+    UserCreate, UserLogin, UserProfileUpdate, ErrandCreate, OfferCreate,
+    CounterOfferCreate, MessageCreate, CheckoutRequest, StatusUpdate,
+    RatingCreate, PushSubscriptionCreate
+)
+from auth import (
+    get_password_hash, verify_password, create_access_token, decode_token,
+    JWT_SECRET, JWT_ALGORITHM, security
+)
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -25,15 +35,13 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
-JWT_SECRET = os.environ.get('JWT_SECRET', 'fallback-secret-change-me')
-JWT_ALGORITHM = "HS256"
-JWT_EXPIRY_HOURS = 24 * 7
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
+VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
+VAPID_PRIVATE_KEY_PATH = ROOT_DIR / os.environ.get('VAPID_PRIVATE_KEY_PATH', 'vapid_private.pem')
+VAPID_CLAIMS_EMAIL = os.environ.get('VAPID_CLAIMS_EMAIL', 'mailto:admin@errandgo.app')
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-security = HTTPBearer()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -120,86 +128,64 @@ async def create_notification(user_id: str, ntype: str, title: str, body: str, e
     await db.notifications.insert_one(doc)
     clean = {k: v for k, v in doc.items() if k != "_id"}
     await manager.notify_user(user_id, {"type": "notification", **clean})
+    # Also send web push notification
+    asyncio.create_task(send_push_notification(user_id, title, body, errand_id))
     return clean
 
 
-# --- Pydantic Models ---
-class UserCreate(BaseModel):
-    email: str
-    password: str
-    name: str
-    neighborhood: str
-
-class UserLogin(BaseModel):
-    email: str
-    password: str
-
-class UserProfileUpdate(BaseModel):
-    name: str
-    neighborhood: str
-
-class ErrandCreate(BaseModel):
-    item_description: str
-    item_details: Optional[str] = None
-    pickup_neighborhood: str
-    delivery_neighborhood: str
-    delivery_address: str
-    offered_price: float
-    pickup_lat: Optional[float] = None
-    pickup_lng: Optional[float] = None
-    image_url: Optional[str] = None
-
-class OfferCreate(BaseModel):
-    proposed_price: float
-    message: Optional[str] = None
-
-class MessageCreate(BaseModel):
-    content: str
-
-class CheckoutRequest(BaseModel):
-    errand_id: str
-    origin_url: str
-
-class StatusUpdate(BaseModel):
-    status: str
-
-class RatingCreate(BaseModel):
-    stars: int
-    comment: Optional[str] = None
+async def send_push_notification(user_id: str, title: str, body: str, errand_id: str = None):
+    """Send web push notification to all subscriptions for a user."""
+    if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY_PATH.exists():
+        return
+    subscriptions = await db.push_subscriptions.find({"user_id": user_id}, {"_id": 0}).to_list(10)
+    if not subscriptions:
+        return
+    payload = json.dumps({
+        "title": title,
+        "body": body,
+        "errand_id": errand_id,
+        "icon": "/icons/icon-192x192.png",
+        "badge": "/icons/favicon-32x32.png"
+    })
+    from pywebpush import webpush, WebPushException
+    for sub in subscriptions:
+        try:
+            await asyncio.get_event_loop().run_in_executor(None, lambda s=sub: webpush(
+                subscription_info={
+                    "endpoint": s["endpoint"],
+                    "keys": {"p256dh": s["p256dh"], "auth": s["auth"]}
+                },
+                data=payload,
+                vapid_private_key=str(VAPID_PRIVATE_KEY_PATH),
+                vapid_claims={
+                    "sub": VAPID_CLAIMS_EMAIL,
+                    "aud": s["endpoint"].split("/")[2] if "/" in s["endpoint"] else s["endpoint"]
+                }
+            ))
+        except WebPushException as e:
+            # Subscription expired or invalid — remove it
+            if "410" in str(e) or "404" in str(e):
+                await db.push_subscriptions.delete_one({"endpoint": sub["endpoint"]})
+            else:
+                logger.warning(f"Push failed for {user_id}: {e}")
+        except Exception as e:
+            logger.warning(f"Push error: {e}")
 
 
-# --- Auth Utilities ---
-def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
-
-def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
-
-def create_token(user_id: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRY_HOURS)
-    return jwt.encode({"sub": user_id, "exp": expire}, JWT_SECRET, algorithm=JWT_ALGORITHM)
+# --- Auth Helpers (injected into FastAPI dependency) ---
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    try:
-        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid token")
-        user = await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
-        if not user:
-            raise HTTPException(status_code=401, detail="User not found")
-        return user
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    user_id = decode_token(credentials.credentials)
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "hashed_password": 0})
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
 
 async def get_user_from_token(token: str):
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        user_id = payload.get("sub")
-        if not user_id:
-            return None
-        return await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
-    except JWTError:
+        user_id = decode_token(token)
+        return await db.users.find_one({"id": user_id}, {"_id": 0, "hashed_password": 0})
+    except HTTPException:
         return None
 
 
@@ -212,13 +198,13 @@ async def register(user_data: UserCreate):
     doc = {
         "id": user_id,
         "email": user_data.email.lower(),
-        "password_hash": hash_password(user_data.password),
+        "password_hash": get_password_hash(user_data.password),
         "name": user_data.name,
         "neighborhood": user_data.neighborhood,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.users.insert_one(doc)
-    token = create_token(user_id)
+    token = create_access_token(user_id)
     safe_user = {k: v for k, v in doc.items() if k not in ["_id", "password_hash"]}
     return {"token": token, "user": safe_user}
 
@@ -227,7 +213,7 @@ async def login(credentials: UserLogin):
     user = await db.users.find_one({"email": credentials.email.lower()})
     if not user or not verify_password(credentials.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-    token = create_token(user["id"])
+    token = create_access_token(user["id"])
     safe_user = {k: v for k, v in user.items() if k not in ["_id", "password_hash"]}
     return {"token": token, "user": safe_user}
 
@@ -242,6 +228,7 @@ async def list_errands(
     pickup: Optional[str] = None,
     delivery: Optional[str] = None,
     status: Optional[str] = "open",
+    category: Optional[str] = None,
     current_user=Depends(get_current_user)
 ):
     query = {}
@@ -251,6 +238,8 @@ async def list_errands(
         query["pickup_neighborhood"] = {"$regex": pickup, "$options": "i"}
     if delivery:
         query["delivery_neighborhood"] = {"$regex": delivery, "$options": "i"}
+    if category:
+        query["category"] = {"$regex": category, "$options": "i"}
     errands = await db.errands.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
     return errands
 
@@ -264,6 +253,7 @@ async def create_errand(errand_data: ErrandCreate, current_user=Depends(get_curr
         "poster_neighborhood": current_user["neighborhood"],
         "item_description": errand_data.item_description,
         "item_details": errand_data.item_details,
+        "category": errand_data.category,
         "pickup_neighborhood": errand_data.pickup_neighborhood,
         "delivery_neighborhood": errand_data.delivery_neighborhood,
         "delivery_address": errand_data.delivery_address,
@@ -410,7 +400,78 @@ async def reject_offer(offer_id: str, current_user=Depends(get_current_user)):
     if errand["poster_id"] != current_user["id"]:
         raise HTTPException(status_code=403, detail="Not authorized")
     await db.offers.update_one({"id": offer_id}, {"$set": {"status": "rejected"}})
+    # Notify runner of rejection
+    await create_notification(
+        offer["runner_id"], "offer_rejected", "Your offer was not accepted",
+        f"Your ${offer['proposed_price']:.2f} offer on '{errand['item_description']}' was declined. You can resubmit with a different price.",
+        offer["errand_id"]
+    )
     return {"message": "Offer rejected"}
+
+@api_router.patch("/offers/{offer_id}/counter")
+async def counter_offer(offer_id: str, body: CounterOfferCreate, current_user=Depends(get_current_user)):
+    offer = await db.offers.find_one({"id": offer_id})
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found")
+    errand = await db.errands.find_one({"id": offer["errand_id"]})
+    if not errand:
+        raise HTTPException(status_code=404, detail="Errand not found")
+    if errand["poster_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the poster can counter offers")
+    if offer["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Can only counter pending offers")
+    await db.offers.update_one(
+        {"id": offer_id},
+        {"$set": {
+            "status": "countered",
+            "counter_price": float(body.counter_price),
+            "counter_message": body.counter_message
+        }}
+    )
+    updated = await db.offers.find_one({"id": offer_id}, {"_id": 0})
+    await create_notification(
+        offer["runner_id"], "offer_countered", "Counter offer received!",
+        f"{current_user['name']} countered your offer with ${body.counter_price:.2f} for '{errand['item_description']}'.",
+        offer["errand_id"]
+    )
+    return updated
+
+@api_router.patch("/offers/{offer_id}/accept-counter")
+async def accept_counter_offer(offer_id: str, current_user=Depends(get_current_user)):
+    offer = await db.offers.find_one({"id": offer_id})
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found")
+    if offer["runner_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the runner can accept a counter offer")
+    if offer["status"] != "countered":
+        raise HTTPException(status_code=400, detail="No counter offer to accept")
+    errand = await db.errands.find_one({"id": offer["errand_id"]})
+    if not errand or errand["status"] != "open":
+        raise HTTPException(status_code=400, detail="Errand is no longer open")
+    # Accept at counter price
+    await db.offers.update_one({"id": offer_id}, {"$set": {"status": "accepted"}})
+    await db.offers.update_many(
+        {"errand_id": offer["errand_id"], "id": {"$ne": offer_id}},
+        {"$set": {"status": "rejected"}}
+    )
+    counter_price = offer.get("counter_price", offer["proposed_price"])
+    await db.errands.update_one(
+        {"id": offer["errand_id"]},
+        {"$set": {
+            "status": "matched",
+            "runner_id": offer["runner_id"],
+            "runner_name": offer["runner_name"],
+            "accepted_price": counter_price
+        }}
+    )
+    updated = await db.errands.find_one({"id": offer["errand_id"]}, {"_id": 0})
+    await manager.broadcast({"type": "offer_accepted", "errand": updated}, offer["errand_id"])
+    await create_notification(
+        errand["poster_id"], "offer_accepted", "Counter offer accepted!",
+        f"{offer['runner_name']} accepted your ${counter_price:.2f} counter offer on '{errand['item_description']}'.",
+        offer["errand_id"]
+    )
+    return updated
 
 
 # --- Message Endpoints ---
@@ -488,6 +549,28 @@ async def my_stats(current_user=Depends(get_current_user)):
     runs_completed = await db.errands.count_documents({"runner_id": current_user["id"], "status": "completed"})
     active_runs = await db.errands.count_documents({"runner_id": current_user["id"], "status": {"$in": ["matched", "in_progress"]}})
     return {"errands_posted": posted, "runs_completed": runs_completed, "active_runs": active_runs}
+
+@api_router.get("/my/earnings")
+async def my_earnings(current_user=Depends(get_current_user)):
+    """Returns completed runs with accepted_price and payout summary."""
+    completed = await db.errands.find(
+        {"runner_id": current_user["id"], "status": "completed"},
+        {"_id": 0, "id": 1, "item_description": 1, "accepted_price": 1, "offered_price": 1,
+         "poster_name": 1, "created_at": 1, "delivery_neighborhood": 1}
+    ).sort("created_at", -1).to_list(200)
+    total = sum(float(e.get("accepted_price") or e.get("offered_price") or 0) for e in completed)
+    # Pending payout = in_progress runs (paid but not yet delivered)
+    in_progress = await db.errands.find(
+        {"runner_id": current_user["id"], "status": "in_progress"},
+        {"_id": 0, "id": 1, "item_description": 1, "accepted_price": 1, "offered_price": 1, "delivery_neighborhood": 1}
+    ).sort("created_at", -1).to_list(50)
+    pending = sum(float(e.get("accepted_price") or e.get("offered_price") or 0) for e in in_progress)
+    return {
+        "total_earned": round(total, 2),
+        "pending_payout": round(pending, 2),
+        "completed_runs": completed,
+        "in_progress_runs": in_progress
+    }
 
 
 # --- Payment Endpoints ---
@@ -630,6 +713,35 @@ async def mark_one_read(notif_id: str, current_user=Depends(get_current_user)):
         {"$set": {"is_read": True}}
     )
     return {"message": "Marked as read"}
+
+
+# --- Push Notification Endpoints ---
+@api_router.get("/push/vapid-public-key")
+async def get_vapid_public_key():
+    return {"publicKey": VAPID_PUBLIC_KEY}
+
+@api_router.post("/push/subscribe")
+async def subscribe_push(body: PushSubscriptionCreate, current_user=Depends(get_current_user)):
+    # Upsert subscription (update if endpoint exists, insert if not)
+    await db.push_subscriptions.update_one(
+        {"user_id": current_user["id"], "endpoint": body.endpoint},
+        {"$set": {
+            "user_id": current_user["id"],
+            "endpoint": body.endpoint,
+            "p256dh": body.p256dh,
+            "auth": body.auth,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }},
+        upsert=True
+    )
+    return {"message": "Subscribed to push notifications"}
+
+@api_router.delete("/push/subscribe")
+async def unsubscribe_push(body: PushSubscriptionCreate, current_user=Depends(get_current_user)):
+    await db.push_subscriptions.delete_one(
+        {"user_id": current_user["id"], "endpoint": body.endpoint}
+    )
+    return {"message": "Unsubscribed"}
 
 
 # --- Rating Endpoints ---
