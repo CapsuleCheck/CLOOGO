@@ -41,7 +41,9 @@ Build an errand app similar to Uber but for running errands. A User on the app w
 - `POST /api/errands/{id}/rate` - Submit 1-5 star rating
 - `GET /api/errands/{id}/my-rating` - Check if current user already rated
 - `GET /api/users/{user_id}/rating` - Get user's average rating
-- Errand schema: added `pickup_lat`, `pickup_lng` fields for map display
+- Errand schema: added `pickup_lat`, `pickup_lng` fields for map display, `image_url` for uploaded photos
+- `POST /api/upload` - Upload image file (multipart/form-data, up to 8MB, image/* only)
+- `GET /api/images/{filename}` - Serve uploaded images (public, no auth required)
 - Notification triggers: new_offer, offer_accepted, payment_confirmed, errand_delivered, new_rating
 
 ### Frontend Features Added
