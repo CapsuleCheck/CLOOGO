@@ -34,47 +34,25 @@ Build an errand app similar to Uber but for running errands. A User on the app w
 ## Implemented Features (Feb 2026)
 ### Backend
 - All original endpoints (auth, errands, offers, messages, payments, profile)
-- `GET /api/notifications` - Get user's notifications
-- `PATCH /api/notifications/read-all` - Mark all read
-- `PATCH /api/notifications/{id}/read` - Mark one read
+- `GET /api/notifications`, `PATCH /api/notifications/read-all`, `PATCH /api/notifications/{id}/read`
 - `WS /api/ws/notifications?token={jwt}` - Per-user real-time notification channel
-- `POST /api/errands/{id}/rate` - Submit 1-5 star rating
-- `GET /api/errands/{id}/my-rating` - Check if current user already rated
-- `GET /api/users/{user_id}/rating` - Get user's average rating
-- Errand schema: added `pickup_lat`, `pickup_lng` fields for map display, `image_url` for uploaded photos
-- `POST /api/upload` - Upload image file (multipart/form-data, up to 8MB, image/* only)
-- `GET /api/images/{filename}` - Serve uploaded images (public, no auth required)
-- Notification triggers: new_offer, offer_accepted, payment_confirmed, errand_delivered, new_rating
+- `POST /api/errands/{id}/rate`, `GET /api/errands/{id}/my-rating`, `GET /api/users/{user_id}/rating`
+- Errand schema: `pickup_lat`, `pickup_lng`, `image_url`
+- `POST /api/upload`, `GET /api/images/{filename}` - Image upload and serving
+- `POST /api/payments/checkout`, `GET /api/payments/status/{session_id}`, `POST /api/webhook/stripe`
+- `POST /api/errands/{id}/messages`, `GET /api/errands/{id}/messages`
+- `WS /api/ws/{errand_id}?token={jwt}` - Per-errand real-time chat
 
 ### Frontend Features Added
-- **Real-time Notifications**: Bell icon in Navbar with unread badge, Popover dropdown with notification list, mark-all-read, navigation to errand on click. WebSocket with 15s polling fallback.
-- **Rating System**: Post-completion star rating form in ErrandDetail (1-5 stars + optional comment). Average rating displayed on Profile page with star visual. Prevents duplicate ratings.
-- **Map View**: Dashboard list/map toggle using Leaflet/OpenStreetMap. Markers for errands with coordinates. Optional map pin picker in PostErrand step 2 (click to place pin, stores lat/lng with errand).
+- **Real-time Notifications**: Bell icon in Navbar, polling fallback (15s), WebSocket best-effort
+- **Rating System**: Post-completion star rating, average rating on Profile page
+- **Map View**: Leaflet/OpenStreetMap in Dashboard + PostErrand map pin picker
+- **Stripe Payment**: Pay button on ErrandDetail → Stripe checkout → status polling → success banner
+- **Real-time Chat**: Chat panel in ErrandDetail, REST + WebSocket (best-effort) + 5s polling fallback
+- **PWA**: manifest.json, service-worker.js (cache-first static, network-first API), icons (192/512px), apple-touch-icon, SW registration in index.js — app installable on iOS/Android/desktop
 
 ### Known Issues
-- WebSocket connections (`wss://`) may fail in some environments (Kubernetes ingress config). Polling fallback (every 15s) ensures notifications still arrive.
-- `POST /api/auth/login` - JWT login
-- `GET /api/auth/me` - Get current user
-- `GET /api/errands` - List errands (filter by status, pickup, delivery)
-- `POST /api/errands` - Create errand
-- `GET /api/errands/{id}` - Get single errand
-- `PATCH /api/errands/{id}/status` - Update status
-- `DELETE /api/errands/{id}` - Cancel open errand
-- `GET /api/errands/{id}/offers` - List offers
-- `POST /api/errands/{id}/offers` - Submit offer
-- `PATCH /api/offers/{id}/accept` - Accept offer (sets errand to matched)
-- `PATCH /api/offers/{id}/reject` - Reject offer
-- `GET /api/errands/{id}/messages` - Get chat history
-- `POST /api/errands/{id}/messages` - Send message
-- `WS /api/ws/{errand_id}?token={jwt}` - WebSocket real-time channel
-- `GET /api/my/errands` - My posted errands
-- `GET /api/my/runs` - Errands I'm running
-- `GET /api/my/stats` - User stats
-- `POST /api/payments/checkout` - Create Stripe checkout session
-- `GET /api/payments/status/{session_id}` - Poll payment status
-- `POST /api/webhook/stripe` - Stripe webhook
-- `GET /api/users/profile` - Get profile
-- `PATCH /api/users/profile` - Update profile
+- WebSocket connections (`wss://`) may fail in preview environment (Kubernetes ingress 403). Polling fallback handles both notifications (15s) and chat (5s).
 
 ### Frontend Pages
 - `/` - Landing page with hero, how it works, benefits, CTA
@@ -110,8 +88,10 @@ Build an errand app similar to Uber but for running errands. A User on the app w
 - [ ] Group errands (multiple items from same area)
 - [ ] Admin dashboard
 
-## Next Tasks
-1. Add email notifications (Resend/SendGrid) for new offers and status changes
-2. Add rating system post-completion
-3. Add errand categories for better filtering
-4. Consider Stripe Connect for direct runner payouts
+## Next Tasks (Prioritized)
+1. Price counter-proposal flow (runner proposes different price, poster accepts/counter-proposes)
+2. Push notifications (web push via PWA after service worker is set up)
+3. AI-powered item description from uploaded image (vision model)
+4. Errand categories for filtering (any item type)
+5. Stripe Connect for direct runner payouts
+6. Backend refactoring: split server.py into routers/ and models/
