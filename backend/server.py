@@ -18,7 +18,7 @@ import asyncio
 from models import (
     UserCreate, UserLogin, UserProfileUpdate, ErrandCreate, OfferCreate,
     CounterOfferCreate, MessageCreate, CheckoutRequest, StatusUpdate,
-    RatingCreate, PushSubscriptionCreate
+    RatingCreate, PushSubscriptionCreate, ExpoPushTokenCreate
 )
 from auth import (
     get_password_hash, verify_password, create_access_token, decode_token,
@@ -128,8 +128,9 @@ async def create_notification(user_id: str, ntype: str, title: str, body: str, e
     await db.notifications.insert_one(doc)
     clean = {k: v for k, v in doc.items() if k != "_id"}
     await manager.notify_user(user_id, {"type": "notification", **clean})
-    # Also send web push notification
+    # Also send web push (VAPID) and Expo push notifications
     asyncio.create_task(send_push_notification(user_id, title, body, errand_id))
+    asyncio.create_task(send_expo_push(user_id, title, body, errand_id))
     return clean
 
 
@@ -742,6 +743,48 @@ async def unsubscribe_push(body: PushSubscriptionCreate, current_user=Depends(ge
         {"user_id": current_user["id"], "endpoint": body.endpoint}
     )
     return {"message": "Unsubscribed"}
+
+
+# --- Expo Push Token Endpoints ---
+@api_router.post("/push/expo-token")
+async def register_expo_token(body: ExpoPushTokenCreate, current_user=Depends(get_current_user)):
+    await db.expo_push_tokens.update_one(
+        {"user_id": current_user["id"], "token": body.token},
+        {"$set": {"user_id": current_user["id"], "token": body.token,
+                  "created_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+    return {"message": "Expo push token registered"}
+
+@api_router.delete("/push/expo-token")
+async def remove_expo_token(body: ExpoPushTokenCreate, current_user=Depends(get_current_user)):
+    await db.expo_push_tokens.delete_one({"user_id": current_user["id"], "token": body.token})
+    return {"message": "Expo push token removed"}
+
+
+async def send_expo_push(user_id: str, title: str, body_text: str, errand_id: str = None):
+    """Send Expo push notification to all registered tokens for a user."""
+    tokens = await db.expo_push_tokens.find({"user_id": user_id}, {"_id": 0}).to_list(5)
+    if not tokens:
+        return
+    messages = [{
+        "to": t["token"],
+        "title": title,
+        "body": body_text,
+        "data": {"errand_id": errand_id},
+        "sound": "default",
+    } for t in tokens]
+    try:
+        import httpx
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                "https://exp.host/--/api/v2/push/send",
+                json=messages,
+                headers={"Content-Type": "application/json", "Accept": "application/json"},
+                timeout=10,
+            )
+    except Exception as e:
+        logger.warning(f"Expo push failed: {e}")
 
 
 # --- Rating Endpoints ---

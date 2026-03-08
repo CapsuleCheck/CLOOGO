@@ -95,7 +95,12 @@ Build an errand app similar to Uber but for running errands. A User on the app w
 4. Email notifications (Resend/SendGrid) for offer and status changes
 5. Errand expiry / auto-cancel after N hours
 
-## Completed (Feb 2026 - Session 2)
+## Completed (Feb 2026 - Session 3)
+- Full Expo React Native mobile app at /app/mobile (iOS + Android)
+- 7 screens: Auth, Dashboard, PostErrand, ErrandDetail, MyErrands, MyRuns, Profile
+- All features from web app ported: offers, counter-proposal, chat (5s polling), Stripe payment (WebBrowser), earnings, categories
+- Push notifications: expo-notifications + backend POST /api/push/expo-token + Expo Push Service
+- Backend: added ExpoPushTokenCreate model, expo-token endpoints, send_expo_push() fires alongside VAPID
 - PWA conversion (manifest, service worker, icons)
 - Stripe payment frontend flow (checkout → success polling)
 - Real-time chat (REST + polling fallback)

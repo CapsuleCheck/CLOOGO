@@ -65,3 +65,6 @@ class PushSubscriptionCreate(BaseModel):
     endpoint: str
     p256dh: str
     auth: str
+
+class ExpoPushTokenCreate(BaseModel):
+    token: str

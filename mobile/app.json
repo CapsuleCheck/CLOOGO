@@ -1,0 +1,70 @@
+{
+  "expo": {
+    "name": "ErrandGo",
+    "slug": "errandgo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#10b981"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.errandgo.app",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Allow ErrandGo to access your photos to attach item images.",
+        "NSCameraUsageDescription": "Allow ErrandGo to use your camera to take item photos.",
+        "UIBackgroundModes": ["remote-notification"]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#10b981"
+      },
+      "package": "com.errandgo.app",
+      "permissions": [
+        "NOTIFICATIONS",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE",
+        "CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#10b981",
+          "sounds": []
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow ErrandGo to access your photos.",
+          "cameraPermission": "Allow ErrandGo to take photos of items."
+        }
+      ]
+    ],
+    "scheme": "errandgo",
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "YOUR_EXPO_PROJECT_ID"
+      }
+    }
+  }
+}
