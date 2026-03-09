@@ -1,5 +1,6 @@
 {
   "expo": {
+    "owner": "errandgo",
     "name": "ErrandGo",
     "slug": "errandgo",
     "version": "1.0.0",
@@ -12,14 +13,19 @@
       "resizeMode": "contain",
       "backgroundColor": "#10b981"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.errandgo.app",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Allow ErrandGo to access your photos to attach item images.",
         "NSCameraUsageDescription": "Allow ErrandGo to use your camera to take item photos.",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -29,11 +35,13 @@
       },
       "package": "com.errandgo.app",
       "permissions": [
-        "NOTIFICATIONS",
-        "READ_MEDIA_IMAGES",
-        "READ_EXTERNAL_STORAGE",
-        "CAMERA"
-      ]
+        "android.permission.NOTIFICATIONS",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -63,7 +71,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "YOUR_EXPO_PROJECT_ID"
+        "projectId": "95d672bb-6e45-4edd-87b3-1e46d38b9215"
       }
     }
   }
