@@ -214,6 +214,9 @@ export default function Landing() {
             <span className="font-extrabold text-white text-lg font-['Manrope']">ErrandGo</span>
           </div>
           <p className="text-slate-400 text-sm">© 2025 ErrandGo. All rights reserved.</p>
+          <Link to="/privacy-policy" className="text-slate-400 text-sm hover:text-emerald-400 transition-colors">
+            Privacy Policy
+          </Link>
         </div>
       </footer>
     </div>
