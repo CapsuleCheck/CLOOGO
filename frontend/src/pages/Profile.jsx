@@ -1,20 +1,25 @@
 import { useState, useEffect } from 'react';
-import { User, MapPin, Package, Truck, CheckCircle, Edit2, Save, X, Star, DollarSign, Clock } from 'lucide-react';
+import { User, MapPin, Package, Truck, CheckCircle, Edit2, Save, X, Star, DollarSign, Clock, Trash2, AlertTriangle } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 
 const inputClass = "w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all placeholder:text-slate-400";
 
 export default function Profile() {
-  const { user, login, token, authHeader, API } = useAuth();
+  const { user, login, token, authHeader, API, logout } = useAuth();
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name: '', neighborhood: '' });
   const [saving, setSaving] = useState(false);
   const [stats, setStats] = useState(null);
   const [userRating, setUserRating] = useState(null);
   const [earnings, setEarnings] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -46,6 +51,20 @@ export default function Profile() {
       toast.error('Failed to update profile');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const deleteAccount = async () => {
+    if (deleteInput !== 'DELETE') return;
+    setDeleting(true);
+    try {
+      await axios.delete(`${API}/users/me`, { headers: authHeader });
+      toast.success('Account deleted successfully.');
+      logout();
+      navigate('/');
+    } catch (err) {
+      toast.error('Failed to delete account. Please try again.');
+      setDeleting(false);
     }
   };
 
@@ -187,7 +206,6 @@ export default function Profile() {
           <p className="text-xs text-slate-400 font-medium uppercase tracking-wide mb-1">Account Email</p>
           <p className="text-sm text-slate-600 font-medium">{user?.email}</p>
         </div>
-
         {/* Earnings Section */}
         {earnings && (
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6" data-testid="earnings-section">
@@ -240,6 +258,70 @@ export default function Profile() {
                 Complete runs to start earning. Your earnings will show here.
               </p>
             )}
+          </div>
+        )}
+
+        {/* Danger Zone */}
+        <div className="bg-white rounded-2xl border border-red-100 p-6 mt-2">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="w-5 h-5 text-red-500" />
+            <h2 className="font-bold text-red-600 text-base">Danger Zone</h2>
+          </div>
+          <p className="text-sm text-slate-500 mb-4">
+            Permanently delete your account and all associated data. This action cannot be undone.
+          </p>
+          <button
+            data-testid="delete-account-btn"
+            onClick={() => { setShowDeleteConfirm(true); setDeleteInput(''); }}
+            className="flex items-center gap-2 rounded-full border border-red-200 px-5 py-2.5 text-red-600 text-sm font-semibold hover:bg-red-50 transition-all"
+          >
+            <Trash2 className="w-4 h-4" /> Delete Account
+          </button>
+        </div>
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900">Delete Account</h3>
+                  <p className="text-xs text-slate-400">This is permanent and cannot be reversed.</p>
+                </div>
+              </div>
+              <p className="text-sm text-slate-600 mb-4">
+                All your errands, offers, messages, and earnings history will be permanently removed.
+                Type <span className="font-bold text-red-600">DELETE</span> to confirm.
+              </p>
+              <input
+                data-testid="delete-confirm-input"
+                type="text"
+                value={deleteInput}
+                onChange={e => setDeleteInput(e.target.value)}
+                placeholder="Type DELETE to confirm"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-400 mb-4"
+              />
+              <div className="flex gap-3">
+                <button
+                  data-testid="delete-confirm-btn"
+                  onClick={deleteAccount}
+                  disabled={deleteInput !== 'DELETE' || deleting}
+                  className="flex-1 rounded-full bg-red-600 px-4 py-2.5 text-white text-sm font-bold hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                >
+                  {deleting ? 'Deleting...' : 'Yes, Delete My Account'}
+                </button>
+                <button
+                  data-testid="delete-cancel-btn"
+                  onClick={() => { setShowDeleteConfirm(false); setDeleteInput(''); }}
+                  className="flex-1 rounded-full border border-slate-200 px-4 py-2.5 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

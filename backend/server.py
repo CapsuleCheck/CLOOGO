@@ -872,6 +872,19 @@ async def update_profile(data: UserProfileUpdate, current_user=Depends(get_curre
     )
     return await db.users.find_one({"id": current_user["id"]}, {"_id": 0, "password_hash": 0})
 
+@api_router.delete("/users/me")
+async def delete_account(current_user=Depends(get_current_user)):
+    user_id = current_user["id"]
+    # Remove user's data across all collections
+    await db.users.delete_one({"id": user_id})
+    await db.errands.delete_many({"owner_id": user_id})
+    await db.offers.delete_many({"runner_id": user_id})
+    await db.messages.delete_many({"sender_id": user_id})
+    await db.notifications.delete_many({"user_id": user_id})
+    await db.push_subscriptions.delete_many({"user_id": user_id})
+    await db.expo_push_tokens.delete_many({"user_id": user_id})
+    return {"message": "Account deleted successfully"}
+
 
 # --- App setup ---
 app.include_router(api_router)
