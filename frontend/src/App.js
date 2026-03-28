@@ -10,6 +10,7 @@ import MyErrands from '@/pages/MyErrands';
 import MyRuns from '@/pages/MyRuns';
 import Profile from '@/pages/Profile';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
+import Support from '@/pages/Support';
 import Navbar from '@/components/Navbar';
 import { Toaster } from '@/components/ui/sonner';
 import '@/App.css';
@@ -53,6 +54,7 @@ function AppRoutes() {
           <ProtectedRoute><Navbar /><Profile /></ProtectedRoute>
         } />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/support" element={<Support />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Toaster richColors position="top-right" />
