@@ -20,8 +20,8 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.errandgo.app",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Allow ErrandGo to access your photos to attach item images.",
-        "NSCameraUsageDescription": "Allow ErrandGo to use your camera to take item photos.",
+        "NSPhotoLibraryUsageDescription": "ErrandGo accesses your photo library to let you attach a picture of the item for your errand — for example, a photo of a prescription label or grocery product — so your runner knows exactly what to collect.",
+        "NSCameraUsageDescription": "ErrandGo uses your camera to take a photo of the item you need picked up — for example, a picture of a prescription bottle or a grocery list — so runners can identify exactly what to collect for your errand.",
         "UIBackgroundModes": [
           "remote-notification"
         ],
@@ -38,8 +38,7 @@
         "android.permission.NOTIFICATIONS",
         "android.permission.READ_MEDIA_IMAGES",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.CAMERA"
       ],
       "versionCode": 2
     },
@@ -60,8 +59,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow ErrandGo to access your photos.",
-          "cameraPermission": "Allow ErrandGo to take photos of items."
+          "photosPermission": "ErrandGo accesses your photo library to let you attach a picture of the item for your errand — for example, a photo of a prescription label or grocery product — so your runner knows exactly what to collect.",
+          "cameraPermission": "ErrandGo uses your camera to take a photo of the item you need picked up — for example, a picture of a prescription bottle or a grocery list — so runners can identify exactly what to collect for your errand."
         }
       ]
     ],
