@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger("keepalive")
 
 BACKEND_URL = "http://localhost:8001"
-PING_INTERVAL = 90  # seconds — ping every 90 seconds
+PING_INTERVAL = 30  # seconds — ping every 30 seconds
 ENDPOINTS = [
     "/api/auth/me",   # lightweight auth check
 ]
