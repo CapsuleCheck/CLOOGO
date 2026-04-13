@@ -191,6 +191,11 @@ async def get_user_from_token(token: str):
 
 
 # --- Auth Endpoints ---
+@api_router.get("/health")
+async def health_check():
+    return {"status": "ok", "service": "ErrandGo API", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+
 @api_router.post("/auth/register")
 async def register(user_data: UserCreate):
     if await db.users.find_one({"email": user_data.email.lower()}):

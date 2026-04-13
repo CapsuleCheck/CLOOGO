@@ -28,7 +28,11 @@ export default function Auth() {
       toast.success(`Welcome back, ${res.data.user.name}!`);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      if (!err.response) {
+        setError('Unable to reach the server. Please check your connection and try again.');
+      } else {
+        setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -52,7 +56,11 @@ export default function Auth() {
       toast.success(`Welcome to ErrandGo, ${res.data.user.name}!`);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Registration failed. Please try again.');
+      if (!err.response) {
+        setError('Unable to reach the server. Please check your connection and try again.');
+      } else {
+        setError(err.response?.data?.detail || 'Registration failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -191,7 +199,10 @@ export default function Auth() {
         )}
 
         <p className="text-center text-xs text-slate-400 mt-6">
-          By continuing, you agree to our Terms of Service and Privacy Policy
+          By continuing, you agree to our{' '}
+          <Link to="/terms" className="text-emerald-600 hover:underline">Terms of Service</Link>
+          {' '}and{' '}
+          <Link to="/privacy-policy" className="text-emerald-600 hover:underline">Privacy Policy</Link>
         </p>
       </div>
     </div>

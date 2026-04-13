@@ -1,12 +1,13 @@
 """
 ErrandGo Keep-Alive Service
-Pings the backend every 2 minutes to prevent the Emergent preview
-environment from sleeping during Apple App Store review.
+Pings both the internal backend and external preview URL every 30 seconds
+to prevent the Emergent preview environment from sleeping during Apple App Store review.
 """
 import time
 import requests
 import logging
 from datetime import datetime, timezone
+import os
 
 logging.basicConfig(
     level=logging.INFO,
@@ -15,52 +16,54 @@ logging.basicConfig(
 )
 logger = logging.getLogger("keepalive")
 
-BACKEND_URL = "http://localhost:8001"
-PING_INTERVAL = 30  # seconds — ping every 30 seconds
-ENDPOINTS = [
-    "/api/auth/me",   # lightweight auth check
-]
+INTERNAL_URL = "http://localhost:8001/api/health"
+EXTERNAL_URL = "https://ride-delivery-8.preview.emergentagent.com/api/health"
+PING_INTERVAL = 30  # seconds
 
-def ping():
-    for endpoint in ENDPOINTS:
-        try:
-            r = requests.get(f"{BACKEND_URL}{endpoint}", timeout=10)
-            logger.info(f"Ping {endpoint} → HTTP {r.status_code} ✓")
+def ping(url, label):
+    try:
+        r = requests.get(url, timeout=15)
+        if r.status_code == 200:
+            logger.info(f"[{label}] Ping OK → HTTP {r.status_code} ✓")
             return True
-        except requests.exceptions.ConnectionError:
-            logger.warning(f"Ping {endpoint} → Connection refused (server starting?)")
-        except Exception as e:
-            logger.warning(f"Ping {endpoint} → {type(e).__name__}: {e}")
-    return False
+        else:
+            logger.warning(f"[{label}] Ping → HTTP {r.status_code}")
+            return False
+    except requests.exceptions.ConnectionError:
+        logger.warning(f"[{label}] Connection refused (server restarting?)")
+        return False
+    except requests.exceptions.Timeout:
+        logger.warning(f"[{label}] Timeout after 15s")
+        return False
+    except Exception as e:
+        logger.warning(f"[{label}] Error: {type(e).__name__}: {e}")
+        return False
 
 def main():
-    logger.info("=" * 50)
+    logger.info("=" * 55)
     logger.info("ErrandGo Keep-Alive Service started")
-    logger.info(f"Pinging every {PING_INTERVAL}s to stay awake for Apple review")
-    logger.info("=" * 50)
+    logger.info(f"Pinging every {PING_INTERVAL}s — internal + external")
+    logger.info("Target: Apple App Store review availability")
+    logger.info("=" * 55)
 
-    consecutive_failures = 0
-    total_pings = 0
+    total = 0
+    fails = 0
 
     while True:
-        total_pings += 1
-        success = ping()
+        total += 1
+        internal_ok = ping(INTERNAL_URL, "internal")
+        external_ok = ping(EXTERNAL_URL, "external")
 
-        if success:
-            consecutive_failures = 0
+        if not internal_ok and not external_ok:
+            fails += 1
+            logger.error(f"Both endpoints unreachable! ({fails} consecutive failures)")
         else:
-            consecutive_failures += 1
-            if consecutive_failures >= 5:
-                logger.error(
-                    f"Backend unreachable for {consecutive_failures} consecutive pings. "
-                    "Supervisor should auto-restart it."
-                )
+            fails = 0
 
-        if total_pings % 40 == 0:  # log summary every ~1 hour
-            logger.info(
-                f"Keep-alive summary: {total_pings} pings sent, "
-                f"{consecutive_failures} consecutive failures"
-            )
+        # Hourly summary
+        if total % 120 == 0:
+            uptime_hrs = (total * PING_INTERVAL) / 3600
+            logger.info(f"Summary: {total} pings | {uptime_hrs:.1f}h uptime | {fails} current failures")
 
         time.sleep(PING_INTERVAL)
 
