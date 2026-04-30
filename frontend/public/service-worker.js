@@ -1,4 +1,4 @@
-const CACHE_NAME = 'errandgo-v1';
+const CACHE_NAME = 'cloogo-v1';
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
@@ -74,7 +74,7 @@ self.addEventListener('fetch', (event) => {
 
 // Push: show browser notification
 self.addEventListener('push', (event) => {
-  let data = { title: 'ErrandGo', body: 'You have a new update', errand_id: null };
+  let data = { title: 'Cloogo', body: 'You have a new update', errand_id: null };
   try {
     if (event.data) data = JSON.parse(event.data.text());
   } catch (e) {}

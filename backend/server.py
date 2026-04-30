@@ -38,7 +38,7 @@ db = client[os.environ['DB_NAME']]
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
 VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_PRIVATE_KEY_PATH = ROOT_DIR / os.environ.get('VAPID_PRIVATE_KEY_PATH', 'vapid_private.pem')
-VAPID_CLAIMS_EMAIL = os.environ.get('VAPID_CLAIMS_EMAIL', 'mailto:admin@errandgo.app')
+VAPID_CLAIMS_EMAIL = os.environ.get('VAPID_CLAIMS_EMAIL', 'mailto:admin@cloogo.app')
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -193,7 +193,7 @@ async def get_user_from_token(token: str):
 # --- Auth Endpoints ---
 @api_router.get("/health")
 async def health_check():
-    return {"status": "ok", "service": "ErrandGo API", "timestamp": datetime.now(timezone.utc).isoformat()}
+    return {"status": "ok", "service": "Cloogo API", "timestamp": datetime.now(timezone.utc).isoformat()}
 
 
 @api_router.post("/auth/register")

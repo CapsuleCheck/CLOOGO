@@ -53,7 +53,7 @@ export default function Auth() {
     try {
       const res = await axios.post(`${API}/auth/register`, registerForm);
       login(res.data.token, res.data.user);
-      toast.success(`Welcome to ErrandGo, ${res.data.user.name}!`);
+      toast.success(`Welcome to Cloogo, ${res.data.user.name}!`);
       navigate('/dashboard');
     } catch (err) {
       if (!err.response) {
@@ -74,7 +74,7 @@ export default function Auth() {
         <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center">
           <MapPin className="w-5 h-5 text-white" />
         </div>
-        <span className="font-extrabold text-slate-900 text-2xl font-['Manrope']">ErrandGo</span>
+        <span className="font-extrabold text-slate-900 text-2xl font-['Manrope']">Cloogo</span>
       </Link>
 
       <div className="w-full max-w-md bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 p-8">

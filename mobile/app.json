@@ -1,8 +1,8 @@
 {
   "expo": {
-    "owner": "errandgo",
-    "name": "ErrandGo",
-    "slug": "errandgo",
+    "owner": "cloogo",
+    "name": "Cloogo",
+    "slug": "cloogo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -18,10 +18,10 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.errandgo.app",
+      "bundleIdentifier": "com.cloogo.app",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "ErrandGo accesses your photo library to let you attach a picture of the item for your errand — for example, a photo of a prescription label or grocery product — so your runner knows exactly what to collect.",
-        "NSCameraUsageDescription": "ErrandGo uses your camera to take a photo of the item you need picked up — for example, a picture of a prescription bottle or a grocery list — so runners can identify exactly what to collect for your errand.",
+        "NSPhotoLibraryUsageDescription": "Cloogo accesses your photo library to let you attach a picture of the item for your errand — for example, a photo of a prescription label or grocery product — so your runner knows exactly what to collect.",
+        "NSCameraUsageDescription": "Cloogo uses your camera to take a photo of the item you need picked up — for example, a picture of a prescription bottle or a grocery list — so runners can identify exactly what to collect for your errand.",
         "UIBackgroundModes": [
           "remote-notification"
         ],
@@ -33,7 +33,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#10b981"
       },
-      "package": "com.errandgo.app",
+      "package": "com.cloogo.app",
       "permissions": [
         "android.permission.NOTIFICATIONS",
         "android.permission.READ_MEDIA_IMAGES",
@@ -59,12 +59,12 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "ErrandGo accesses your photo library to let you attach a picture of the item for your errand — for example, a photo of a prescription label or grocery product — so your runner knows exactly what to collect.",
-          "cameraPermission": "ErrandGo uses your camera to take a photo of the item you need picked up — for example, a picture of a prescription bottle or a grocery list — so runners can identify exactly what to collect for your errand."
+          "photosPermission": "Cloogo accesses your photo library to let you attach a picture of the item for your errand — for example, a photo of a prescription label or grocery product — so your runner knows exactly what to collect.",
+          "cameraPermission": "Cloogo uses your camera to take a photo of the item you need picked up — for example, a picture of a prescription bottle or a grocery list — so runners can identify exactly what to collect for your errand."
         }
       ]
     ],
-    "scheme": "errandgo",
+    "scheme": "cloogo",
     "extra": {
       "router": {
         "origin": false

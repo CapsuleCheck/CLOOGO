@@ -1,4 +1,4 @@
-"""Backend tests for ErrandGo app - covers auth, errands, offers, messages, payments"""
+"""Backend tests for Cloogo app - covers auth, errands, offers, messages, payments"""
 import pytest
 import requests
 import os

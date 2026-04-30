@@ -1,4 +1,4 @@
-"""Authentication utilities for ErrandGo."""
+"""Authentication utilities for Cloogo."""
 import os
 from datetime import datetime, timezone, timedelta
 from passlib.context import CryptContext

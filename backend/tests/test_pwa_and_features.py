@@ -1,5 +1,5 @@
 """
-Backend API tests for ErrandGo - PWA features, auth, errands, offers, payments, chat
+Backend API tests for Cloogo - PWA features, auth, errands, offers, payments, chat
 """
 import pytest
 import requests
@@ -8,9 +8,9 @@ import os
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
-POSTER_EMAIL = "testposter_pwa@errandgo.com"
+POSTER_EMAIL = "testposter_pwa@cloogo.com"
 POSTER_PASS = "testpass1234"
-RUNNER_EMAIL = "testrunner_pwa@errandgo.com"
+RUNNER_EMAIL = "testrunner_pwa@cloogo.com"
 RUNNER_PASS = "testpass1234"
 
 poster_token = None
@@ -44,8 +44,8 @@ class TestPWAAssets:
     def test_manifest_has_required_fields(self):
         resp = requests.get(f"{BASE_URL}/manifest.json")
         data = resp.json()
-        assert data.get("name") == "ErrandGo - Neighborhood Errands"
-        assert data.get("short_name") == "ErrandGo"
+        assert data.get("name") == "Cloogo - Neighborhood Errands"
+        assert data.get("short_name") == "Cloogo"
         assert "icons" in data
         print("PASS: manifest has required fields")
 
@@ -67,7 +67,7 @@ class TestPWAAssets:
     def test_index_html_title(self):
         resp = requests.get(f"{BASE_URL}/")
         assert resp.status_code == 200
-        assert "ErrandGo - Neighborhood Errands" in resp.text
+        assert "Cloogo - Neighborhood Errands" in resp.text
         print("PASS: index.html has correct title")
 
     def test_index_html_manifest_link(self):

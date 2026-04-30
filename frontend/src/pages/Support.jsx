@@ -25,7 +25,7 @@ const faqs = [
   },
   {
     q: "What if something goes wrong with my errand?",
-    a: "Contact us immediately at support@errandgo.app with your errand ID and a description of the issue. We aim to respond within 24 hours."
+    a: "Contact us immediately at support@cloogo.app with your errand ID and a description of the issue. We aim to respond within 24 hours."
   },
   {
     q: "How does the rating system work?",
@@ -33,7 +33,7 @@ const faqs = [
   },
   {
     q: "How do I delete my account?",
-    a: "Email us at support@errandgo.app with the subject 'Account Deletion Request' and your registered email. We'll process it within 5 business days."
+    a: "Email us at support@cloogo.app with the subject 'Account Deletion Request' and your registered email. We'll process it within 5 business days."
   }
 ];
 
@@ -66,7 +66,7 @@ export default function Support() {
             <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">E</span>
             </div>
-            <span className="font-bold text-slate-900 text-lg">ErrandGo</span>
+            <span className="font-bold text-slate-900 text-lg">Cloogo</span>
           </Link>
           <Link to="/" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">
             ← Back to Home
@@ -84,19 +84,19 @@ export default function Support() {
 
         {/* Contact Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <a href="mailto:support@errandgo.app"
+          <a href="mailto:support@cloogo.app"
             className="bg-white rounded-2xl border border-slate-200 p-6 flex items-start gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
             <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
               <Mail className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
               <p className="font-semibold text-slate-900">Email Support</p>
-              <p className="text-sm text-slate-500 mt-0.5">support@errandgo.app</p>
+              <p className="text-sm text-slate-500 mt-0.5">support@cloogo.app</p>
               <p className="text-xs text-slate-400 mt-1">Response within 24 hours</p>
             </div>
           </a>
 
-          <a href="mailto:support@errandgo.app?subject=Live%20Chat%20Request"
+          <a href="mailto:support@cloogo.app?subject=Live%20Chat%20Request"
             className="bg-white rounded-2xl border border-slate-200 p-6 flex items-start gap-4 hover:shadow-md hover:-translate-y-0.5 transition-all">
             <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
               <MessageCircle className="w-5 h-5 text-blue-600" />
@@ -125,8 +125,8 @@ export default function Support() {
           <p className="text-slate-700 font-medium">Still need help?</p>
           <p className="text-slate-500 text-sm mt-1">
             Email us at{' '}
-            <a href="mailto:support@errandgo.app" className="text-emerald-600 hover:underline font-medium">
-              support@errandgo.app
+            <a href="mailto:support@cloogo.app" className="text-emerald-600 hover:underline font-medium">
+              support@cloogo.app
             </a>{' '}
             and we'll get back to you as soon as possible.
           </p>

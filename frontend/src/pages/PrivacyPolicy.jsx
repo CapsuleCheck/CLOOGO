@@ -9,7 +9,7 @@ export default function PrivacyPolicy() {
             <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">E</span>
             </div>
-            <span className="font-bold text-slate-900 text-lg">ErrandGo</span>
+            <span className="font-bold text-slate-900 text-lg">Cloogo</span>
           </Link>
           <Link to="/" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">
             ← Back to Home
@@ -27,7 +27,7 @@ export default function PrivacyPolicy() {
             <section>
               <h2 className="text-xl font-semibold text-slate-800 mb-3">1. Introduction</h2>
               <p className="text-slate-600 leading-relaxed">
-                Welcome to ErrandGo ("we," "our," or "us"). We are committed to protecting your personal information and your right to privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our errand-running platform, including our website and mobile application (collectively, the "Service").
+                Welcome to Cloogo ("we," "our," or "us"). We are committed to protecting your personal information and your right to privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our errand-running platform, including our website and mobile application (collectively, the "Service").
               </p>
               <p className="text-slate-600 leading-relaxed mt-3">
                 Please read this policy carefully. If you disagree with its terms, please discontinue use of the Service.
@@ -80,7 +80,7 @@ export default function PrivacyPolicy() {
                 <li><strong>Stripe:</strong> Payment information is shared with Stripe for processing. Stripe's privacy policy applies to data they collect.</li>
                 <li><strong>Expo (Push Notifications):</strong> Push notification tokens are shared with Expo to deliver notifications to your device.</li>
                 <li><strong>Service Providers:</strong> Trusted third parties who assist in operating our platform (hosting, analytics), under confidentiality agreements.</li>
-                <li><strong>Legal Requirements:</strong> When required by law, court order, or to protect the rights, property, or safety of ErrandGo or others.</li>
+                <li><strong>Legal Requirements:</strong> When required by law, court order, or to protect the rights, property, or safety of Cloogo or others.</li>
               </ul>
               <p className="text-slate-600 leading-relaxed mt-3">
                 We do not sell your personal information to third parties.
@@ -109,7 +109,7 @@ export default function PrivacyPolicy() {
                 <li><strong>Withdraw consent</strong> where processing is based on consent</li>
               </ul>
               <p className="text-slate-600 leading-relaxed mt-3">
-                To exercise these rights, contact us at <a href="mailto:privacy@errandgo.app" className="text-emerald-600 hover:underline">privacy@errandgo.app</a>.
+                To exercise these rights, contact us at <a href="mailto:privacy@cloogo.app" className="text-emerald-600 hover:underline">privacy@cloogo.app</a>.
               </p>
             </section>
 
@@ -123,7 +123,7 @@ export default function PrivacyPolicy() {
             <section>
               <h2 className="text-xl font-semibold text-slate-800 mb-3">8. Children's Privacy</h2>
               <p className="text-slate-600 leading-relaxed">
-                ErrandGo is not directed to individuals under the age of 18. We do not knowingly collect personal information from minors. If you believe a minor has provided us with personal information, please contact us and we will delete it promptly.
+                Cloogo is not directed to individuals under the age of 18. We do not knowingly collect personal information from minors. If you believe a minor has provided us with personal information, please contact us and we will delete it promptly.
               </p>
             </section>
 
@@ -140,9 +140,9 @@ export default function PrivacyPolicy() {
                 If you have questions or concerns about this Privacy Policy or our data practices, please contact us:
               </p>
               <div className="mt-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <p className="text-slate-700 font-medium">ErrandGo</p>
-                <p className="text-slate-600 text-sm mt-1">Email: <a href="mailto:privacy@errandgo.app" className="text-emerald-600 hover:underline">privacy@errandgo.app</a></p>
-                <p className="text-slate-600 text-sm">Website: <a href="https://ride-delivery-8.preview.emergentagent.com" className="text-emerald-600 hover:underline">errandgo.app</a></p>
+                <p className="text-slate-700 font-medium">Cloogo</p>
+                <p className="text-slate-600 text-sm mt-1">Email: <a href="mailto:privacy@cloogo.app" className="text-emerald-600 hover:underline">privacy@cloogo.app</a></p>
+                <p className="text-slate-600 text-sm">Website: <a href="https://ride-delivery-8.preview.emergentagent.com" className="text-emerald-600 hover:underline">cloogo.app</a></p>
               </div>
             </section>
 
@@ -151,7 +151,7 @@ export default function PrivacyPolicy() {
       </main>
 
       <footer className="text-center py-6 text-slate-400 text-sm">
-        © {new Date().getFullYear()} ErrandGo. All rights reserved.
+        © {new Date().getFullYear()} Cloogo. All rights reserved.
       </footer>
     </div>
   );

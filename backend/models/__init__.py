@@ -1,4 +1,4 @@
-"""Pydantic schemas for ErrandGo API."""
+"""Pydantic schemas for Cloogo API."""
 from pydantic import BaseModel, Field
 from typing import Optional, List
 

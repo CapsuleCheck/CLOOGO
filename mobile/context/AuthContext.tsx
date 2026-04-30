@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const saved = await AsyncStorage.getItem('errandgo_token');
+        const saved = await AsyncStorage.getItem('cloogo_token');
         if (saved) {
           const res = await axios.get(`${API_URL}/api/auth/me`, {
             headers: { Authorization: `Bearer ${saved}` },
@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           registerForPushNotifications(API_URL, saved);
         }
       } catch {
-        await AsyncStorage.removeItem('errandgo_token');
+        await AsyncStorage.removeItem('cloogo_token');
       } finally {
         setLoading(false);
       }
@@ -86,14 +86,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (t: string, u: User) => {
-    await AsyncStorage.setItem('errandgo_token', t);
+    await AsyncStorage.setItem('cloogo_token', t);
     setToken(t);
     setUser(u);
     registerForPushNotifications(API_URL, t);
   };
 
   const logout = async () => {
-    await AsyncStorage.removeItem('errandgo_token');
+    await AsyncStorage.removeItem('cloogo_token');
     setToken(null);
     setUser(null);
   };

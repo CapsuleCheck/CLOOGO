@@ -1,4 +1,4 @@
-"""Tests for new ErrandGo features: categories, counter-proposal, push notifications, earnings, refactoring."""
+"""Tests for new Cloogo features: categories, counter-proposal, push notifications, earnings, refactoring."""
 import pytest
 import requests
 import os

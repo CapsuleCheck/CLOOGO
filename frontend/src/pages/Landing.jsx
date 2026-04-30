@@ -40,7 +40,7 @@ export default function Landing() {
             <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center">
               <MapPin className="w-4 h-4 text-white" />
             </div>
-            <span className="font-extrabold text-slate-900 text-xl font-['Manrope']">ErrandGo</span>
+            <span className="font-extrabold text-slate-900 text-xl font-['Manrope']">Cloogo</span>
           </div>
           <div className="flex items-center gap-3">
             <Link to="/auth" data-testid="landing-login-btn"
@@ -124,7 +124,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-12">
             <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 mb-2">Simple process</p>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 font-['Manrope'] tracking-tight">How ErrandGo works</h2>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 font-['Manrope'] tracking-tight">How Cloogo works</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {steps.map((step) => (
@@ -148,7 +148,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 mb-2">Why ErrandGo</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600 mb-2">Why Cloogo</p>
               <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 font-['Manrope'] tracking-tight mb-6">
                 Your neighborhood,<br />better connected
               </h2>
@@ -195,7 +195,7 @@ export default function Landing() {
             Ready to get started?
           </h2>
           <p className="mt-4 text-emerald-100 text-lg">
-            Join hundreds of neighbors already using ErrandGo.
+            Join hundreds of neighbors already using Cloogo.
           </p>
           <Link to="/auth" data-testid="landing-footer-cta-btn"
             className="mt-8 inline-flex rounded-full bg-white px-10 py-4 text-emerald-700 font-extrabold text-lg hover:bg-emerald-50 transition-all shadow-xl hover:-translate-y-0.5">
@@ -211,9 +211,9 @@ export default function Landing() {
             <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center">
               <MapPin className="w-3.5 h-3.5 text-white" />
             </div>
-            <span className="font-extrabold text-white text-lg font-['Manrope']">ErrandGo</span>
+            <span className="font-extrabold text-white text-lg font-['Manrope']">Cloogo</span>
           </div>
-          <p className="text-slate-400 text-sm">© 2025 ErrandGo. All rights reserved.</p>
+          <p className="text-slate-400 text-sm">© 2025 Cloogo. All rights reserved.</p>
           <Link to="/privacy-policy" className="text-slate-400 text-sm hover:text-emerald-400 transition-colors">
             Privacy Policy
           </Link>

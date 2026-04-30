@@ -67,7 +67,7 @@ export default function AuthScreen() {
             <View style={styles.logoCircle}>
               <Text style={styles.logoText}>E</Text>
             </View>
-            <Text style={styles.appName}>ErrandGo</Text>
+            <Text style={styles.appName}>Cloogo</Text>
             <Text style={styles.tagline}>Your neighborhood errand network</Text>
           </View>
 

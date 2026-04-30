@@ -1,5 +1,5 @@
 """
-ErrandGo Keep-Alive Service
+Cloogo Keep-Alive Service
 Pings both the internal backend and external preview URL every 30 seconds
 to prevent the Emergent preview environment from sleeping during Apple App Store review.
 """
@@ -41,7 +41,7 @@ def ping(url, label):
 
 def main():
     logger.info("=" * 55)
-    logger.info("ErrandGo Keep-Alive Service started")
+    logger.info("Cloogo Keep-Alive Service started")
     logger.info(f"Pinging every {PING_INTERVAL}s — internal + external")
     logger.info("Target: Apple App Store review availability")
     logger.info("=" * 55)

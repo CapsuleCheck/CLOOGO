@@ -41,7 +41,7 @@ export default function Navbar() {
               <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center">
                 <MapPin className="w-4 h-4 text-white" />
               </div>
-              <span className="font-extrabold text-slate-900 text-xl font-['Manrope'] hidden sm:block">ErrandGo</span>
+              <span className="font-extrabold text-slate-900 text-xl font-['Manrope'] hidden sm:block">Cloogo</span>
             </Link>
 
             {/* Desktop Links */}

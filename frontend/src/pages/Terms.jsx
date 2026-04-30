@@ -9,7 +9,7 @@ export default function Terms() {
             <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">E</span>
             </div>
-            <span className="font-bold text-slate-900 text-lg">ErrandGo</span>
+            <span className="font-bold text-slate-900 text-lg">Cloogo</span>
           </Link>
           <Link to="/" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">
             ← Back to Home
@@ -27,14 +27,14 @@ export default function Terms() {
             <section>
               <h2 className="text-xl font-semibold text-slate-800 mb-3">1. Acceptance of Terms</h2>
               <p className="text-slate-600 leading-relaxed">
-                By accessing or using ErrandGo ("the Service"), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service. ErrandGo is owned and operated by Irhimefe Otuburun ("we," "us," or "our").
+                By accessing or using Cloogo ("the Service"), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service. Cloogo is owned and operated by Irhimefe Otuburun ("we," "us," or "our").
               </p>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold text-slate-800 mb-3">2. Description of Service</h2>
               <p className="text-slate-600 leading-relaxed">
-                ErrandGo is a platform that connects individuals who need errands completed ("Posters") with individuals willing to complete those errands for compensation ("Runners"). We act as an intermediary and are not a party to any agreement between Posters and Runners.
+                Cloogo is a platform that connects individuals who need errands completed ("Posters") with individuals willing to complete those errands for compensation ("Runners"). We act as an intermediary and are not a party to any agreement between Posters and Runners.
               </p>
             </section>
 
@@ -55,7 +55,7 @@ export default function Terms() {
                 <li>Post illegal, harmful, or fraudulent errands</li>
                 <li>Harass, threaten, or abuse other users</li>
                 <li>Provide false information about yourself or your errands</li>
-                <li>Circumvent the platform's payment system to pay Runners outside ErrandGo</li>
+                <li>Circumvent the platform's payment system to pay Runners outside Cloogo</li>
                 <li>Use the Service for any unlawful purpose</li>
                 <li>Attempt to gain unauthorized access to any portion of the Service</li>
               </ul>
@@ -64,14 +64,14 @@ export default function Terms() {
             <section>
               <h2 className="text-xl font-semibold text-slate-800 mb-3">5. Payments & Fees</h2>
               <p className="text-slate-600 leading-relaxed">
-                All payments between Posters and Runners are processed through Stripe, our third-party payment processor. By using payment features, you agree to Stripe's Terms of Service. ErrandGo may charge a service fee on transactions. All fees are displayed clearly before any payment is confirmed. Payments are non-refundable unless otherwise agreed.
+                All payments between Posters and Runners are processed through Stripe, our third-party payment processor. By using payment features, you agree to Stripe's Terms of Service. Cloogo may charge a service fee on transactions. All fees are displayed clearly before any payment is confirmed. Payments are non-refundable unless otherwise agreed.
               </p>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold text-slate-800 mb-3">6. Errand Completion & Disputes</h2>
               <p className="text-slate-600 leading-relaxed">
-                Runners are independent contractors, not employees of ErrandGo. We are not responsible for the quality, timeliness, or completion of any errand. Disputes between Posters and Runners should be resolved between the parties directly. ErrandGo may, at its sole discretion, mediate disputes but has no obligation to do so.
+                Runners are independent contractors, not employees of Cloogo. We are not responsible for the quality, timeliness, or completion of any errand. Disputes between Posters and Runners should be resolved between the parties directly. Cloogo may, at its sole discretion, mediate disputes but has no obligation to do so.
               </p>
             </section>
 
@@ -85,7 +85,7 @@ export default function Terms() {
             <section>
               <h2 className="text-xl font-semibold text-slate-800 mb-3">8. Content & Intellectual Property</h2>
               <p className="text-slate-600 leading-relaxed">
-                You retain ownership of content you upload (photos, descriptions). By posting content, you grant ErrandGo a non-exclusive, royalty-free license to display and use that content to provide the Service. All ErrandGo branding, code, and design are owned exclusively by Irhimefe Otuburun.
+                You retain ownership of content you upload (photos, descriptions). By posting content, you grant Cloogo a non-exclusive, royalty-free license to display and use that content to provide the Service. All Cloogo branding, code, and design are owned exclusively by Irhimefe Otuburun.
               </p>
             </section>
 
@@ -99,14 +99,14 @@ export default function Terms() {
             <section>
               <h2 className="text-xl font-semibold text-slate-800 mb-3">10. Disclaimer of Warranties</h2>
               <p className="text-slate-600 leading-relaxed">
-                The Service is provided "as is" and "as available" without warranties of any kind. We do not guarantee uninterrupted, error-free operation of the Service. To the fullest extent permitted by law, ErrandGo disclaims all express, implied, and statutory warranties.
+                The Service is provided "as is" and "as available" without warranties of any kind. We do not guarantee uninterrupted, error-free operation of the Service. To the fullest extent permitted by law, Cloogo disclaims all express, implied, and statutory warranties.
               </p>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold text-slate-800 mb-3">11. Limitation of Liability</h2>
               <p className="text-slate-600 leading-relaxed">
-                To the maximum extent permitted by law, ErrandGo shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of, or inability to use, the Service, including any damages arising from errand transactions between users.
+                To the maximum extent permitted by law, Cloogo shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of, or inability to use, the Service, including any damages arising from errand transactions between users.
               </p>
             </section>
 
@@ -127,9 +127,9 @@ export default function Terms() {
             <section>
               <h2 className="text-xl font-semibold text-slate-800 mb-3">14. Contact</h2>
               <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <p className="text-slate-700 font-medium">ErrandGo</p>
-                <p className="text-slate-600 text-sm mt-1">Email: <a href="mailto:legal@errandgo.app" className="text-emerald-600 hover:underline">legal@errandgo.app</a></p>
-                <p className="text-slate-600 text-sm">Support: <Link to="/support" className="text-emerald-600 hover:underline">errandgo.app/support</Link></p>
+                <p className="text-slate-700 font-medium">Cloogo</p>
+                <p className="text-slate-600 text-sm mt-1">Email: <a href="mailto:legal@cloogo.app" className="text-emerald-600 hover:underline">legal@cloogo.app</a></p>
+                <p className="text-slate-600 text-sm">Support: <Link to="/support" className="text-emerald-600 hover:underline">cloogo.app/support</Link></p>
               </div>
             </section>
 
