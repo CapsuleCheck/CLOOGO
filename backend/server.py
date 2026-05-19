@@ -319,7 +319,35 @@ async def delete_errand(errand_id: str, current_user=Depends(get_current_user)):
     return {"message": "Errand cancelled"}
 
 
-# --- Offer Endpoints ---
+# --- Live Tracking Endpoints ---
+@api_router.patch("/errands/{errand_id}/runner-location")
+async def update_runner_location(errand_id: str, location: dict, current_user=Depends(get_current_user)):
+    errand = await db.errands.find_one({"id": errand_id})
+    if not errand:
+        raise HTTPException(status_code=404, detail="Errand not found")
+    if errand.get("runner_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Only the runner can update location")
+    await db.errands.update_one(
+        {"id": errand_id},
+        {"$set": {"runner_location": {
+            "lat": float(location["lat"]),
+            "lng": float(location["lng"]),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}}
+    )
+    return {"status": "ok"}
+
+@api_router.get("/errands/{errand_id}/runner-location")
+async def get_runner_location(errand_id: str, current_user=Depends(get_current_user)):
+    errand = await db.errands.find_one({"id": errand_id}, {"_id": 0})
+    if not errand:
+        raise HTTPException(status_code=404, detail="Errand not found")
+    if current_user["id"] not in [errand.get("poster_id"), errand.get("runner_id")]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    loc = errand.get("runner_location")
+    return loc if loc else {"lat": None, "lng": None, "updated_at": None}
+
+
 @api_router.get("/errands/{errand_id}/offers")
 async def get_offers(errand_id: str, current_user=Depends(get_current_user)):
     offers = await db.offers.find({"errand_id": errand_id}, {"_id": 0}).sort("created_at", -1).to_list(50)

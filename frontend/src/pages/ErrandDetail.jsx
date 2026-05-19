@@ -2,12 +2,78 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import {
   MapPin, Package, DollarSign, Clock, Send, CheckCircle,
-  ArrowLeft, User, MessageCircle, CreditCard, AlertCircle, Truck, RefreshCw
+  ArrowLeft, User, MessageCircle, CreditCard, AlertCircle, Truck, RefreshCw,
+  Navigation, Radio
 } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { formatDistanceToNow, format } from 'date-fns';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix Leaflet default icon
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+const runnerIcon = new L.DivIcon({
+  className: '',
+  html: `<div style="background:#059669;width:36px;height:36px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+  </div>`,
+  iconSize: [36, 36],
+  iconAnchor: [18, 18],
+});
+
+function FlyToLocation({ position }) {
+  const map = useMap();
+  useEffect(() => {
+    if (position) map.flyTo(position, 15, { animate: true, duration: 1 });
+  }, [position]);
+  return null;
+}
+
+function LiveTrackingMap({ runnerLocation, errandTitle }) {
+  const position = runnerLocation?.lat ? [runnerLocation.lat, runnerLocation.lng] : null;
+  return (
+    <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm" style={{ height: 280 }}>
+      <MapContainer
+        center={position || [51.5074, -0.1278]}
+        zoom={position ? 15 : 10}
+        style={{ height: '100%', width: '100%' }}
+        zoomControl={true}
+      >
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; OpenStreetMap contributors'
+        />
+        {position && (
+          <>
+            <FlyToLocation position={position} />
+            <Marker position={position} icon={runnerIcon}>
+              <Popup>
+                <div className="text-center">
+                  <p className="font-bold text-slate-900 text-sm">Runner is here</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{errandTitle}</p>
+                  {runnerLocation.updated_at && (
+                    <p className="text-xs text-emerald-600 mt-1">
+                      Updated {formatDistanceToNow(new Date(runnerLocation.updated_at), { addSuffix: true })}
+                    </p>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          </>
+        )}
+      </MapContainer>
+    </div>
+  );
+}
 
 const STATUS_CONFIG = {
   open: { label: 'Open for Offers', color: 'bg-blue-50 text-blue-700 border-blue-200', step: 1 },
@@ -37,6 +103,10 @@ export default function ErrandDetail() {
   const [submittingRating, setSubmittingRating] = useState(false);
   const [counteringOfferId, setCounteringOfferId] = useState(null);
   const [counterForm, setCounterForm] = useState({ counter_price: '', counter_message: '' });
+  const [showTracking, setShowTracking] = useState(false);
+  const [runnerLocation, setRunnerLocation] = useState(null);
+  const [sharingLocation, setSharingLocation] = useState(false);
+  const locationWatchRef = useRef(null);
 
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -287,6 +357,54 @@ export default function ErrandDetail() {
     }
   };
 
+  // --- Live Tracking ---
+  const fetchRunnerLocation = async () => {
+    try {
+      const res = await axios.get(`${API}/errands/${id}/runner-location`, { headers: authHeader });
+      if (res.data?.lat) setRunnerLocation(res.data);
+    } catch (err) { /* silent */ }
+  };
+
+  // Poll runner location every 5s when tracking panel is open
+  useEffect(() => {
+    if (!showTracking || !['matched', 'in_progress'].includes(errand?.status)) return;
+    fetchRunnerLocation();
+    const interval = setInterval(fetchRunnerLocation, 5000);
+    return () => clearInterval(interval);
+  }, [showTracking, errand?.status]);
+
+  const startSharingLocation = () => {
+    if (!navigator.geolocation) { toast.error('Geolocation not supported on this device'); return; }
+    setSharingLocation(true);
+    toast.success('Location sharing started');
+    locationWatchRef.current = navigator.geolocation.watchPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        try {
+          await axios.patch(`${API}/errands/${id}/runner-location`, { lat, lng }, { headers: authHeader });
+        } catch (err) { /* silent */ }
+      },
+      (err) => { toast.error('Unable to get location: ' + err.message); setSharingLocation(false); },
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+    );
+  };
+
+  const stopSharingLocation = () => {
+    if (locationWatchRef.current !== null) {
+      navigator.geolocation.clearWatch(locationWatchRef.current);
+      locationWatchRef.current = null;
+    }
+    setSharingLocation(false);
+    toast.info('Location sharing stopped');
+  };
+
+  // Clean up geolocation on unmount
+  useEffect(() => {
+    return () => {
+      if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current);
+    };
+  }, []);
+
   if (loading) {
     return (
       <main className="pt-20 pb-28 md:pb-8 min-h-screen">
@@ -406,6 +524,30 @@ export default function ErrandDetail() {
                 {paymentLoading ? 'Loading...' : `Pay $${errand.accepted_price?.toFixed(2)}`}
               </button>
             )}
+            {(isPoster || isRunner) && ['matched', 'in_progress'].includes(errand.status) && (
+              <button data-testid="track-runner-btn"
+                onClick={() => setShowTracking(prev => !prev)}
+                className={`flex items-center gap-2 rounded-full px-5 py-2.5 font-bold text-sm transition-all ${
+                  showTracking
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                    : 'border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50'
+                }`}>
+                <Navigation className="w-4 h-4" />
+                {showTracking ? 'Hide Tracking' : 'Track Runner'}
+              </button>
+            )}
+            {isRunner && errand.status === 'in_progress' && (
+              <button data-testid="share-location-btn"
+                onClick={sharingLocation ? stopSharingLocation : startSharingLocation}
+                className={`flex items-center gap-2 rounded-full px-5 py-2.5 font-bold text-sm transition-all ${
+                  sharingLocation
+                    ? 'bg-red-500 text-white hover:bg-red-600'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}>
+                <Radio className={`w-4 h-4 ${sharingLocation ? 'animate-pulse' : ''}`} />
+                {sharingLocation ? 'Stop Sharing' : 'Share My Location'}
+              </button>
+            )}
             {isRunner && errand.status === 'in_progress' && (
               <button data-testid="mark-delivered-btn"
                 onClick={markCompleted}
@@ -421,6 +563,33 @@ export default function ErrandDetail() {
               </button>
             )}
           </div>
+
+          {/* Live Tracking Panel */}
+          {showTracking && ['matched', 'in_progress'].includes(errand.status) && (
+            <div className="mt-5 space-y-3" data-testid="live-tracking-panel">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2.5 h-2.5 rounded-full ${runnerLocation?.lat ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                  <span className="text-sm font-semibold text-slate-700">
+                    {runnerLocation?.lat ? 'Runner location live' : 'Waiting for runner to share location…'}
+                  </span>
+                </div>
+                {runnerLocation?.updated_at && (
+                  <span className="text-xs text-slate-400">
+                    Updated {formatDistanceToNow(new Date(runnerLocation.updated_at), { addSuffix: true })}
+                  </span>
+                )}
+              </div>
+              {runnerLocation?.lat ? (
+                <LiveTrackingMap runnerLocation={runnerLocation} errandTitle={errand.item_description} />
+              ) : (
+                <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 h-40 flex flex-col items-center justify-center gap-2">
+                  <Navigation className="w-8 h-8 text-slate-300" />
+                  <p className="text-sm text-slate-400">Map will appear once runner shares their location</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Offers Section — Visible when open or for poster after matched */}
