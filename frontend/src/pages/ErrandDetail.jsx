@@ -107,6 +107,8 @@ export default function ErrandDetail() {
   const [runnerLocation, setRunnerLocation] = useState(null);
   const [sharingLocation, setSharingLocation] = useState(false);
   const locationWatchRef = useRef(null);
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+  const promptShownRef = useRef(false);
 
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -404,6 +406,16 @@ export default function ErrandDetail() {
       if (locationWatchRef.current !== null) navigator.geolocation.clearWatch(locationWatchRef.current);
     };
   }, []);
+
+  // Auto-prompt runner to share location when offer is accepted
+  useEffect(() => {
+    if (!errand || !user || promptShownRef.current) return;
+    const isRunnerMatched = errand.runner_id === user.id && ['matched', 'in_progress'].includes(errand.status);
+    if (isRunnerMatched && !sharingLocation) {
+      promptShownRef.current = true;
+      setShowLocationPrompt(true);
+    }
+  }, [errand?.status, errand?.runner_id, user?.id]);
 
   if (loading) {
     return (
@@ -878,6 +890,41 @@ export default function ErrandDetail() {
           </div>
         )}
       </div>
+      {/* Runner Location Sharing Prompt */}
+      {showLocationPrompt && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 px-4 pb-6 sm:pb-0">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-11 h-11 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Navigation className="w-6 h-6 text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-base">Share your location?</h3>
+                <p className="text-xs text-slate-400">Your offer was accepted!</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 mb-5 leading-relaxed">
+              Let <strong>{errand?.poster_name || 'the poster'}</strong> track your real-time movement as you pick up and deliver their errand. Your location is only shared during this errand.
+            </p>
+            <div className="flex gap-3">
+              <button
+                data-testid="prompt-share-location-btn"
+                onClick={() => { setShowLocationPrompt(false); startSharingLocation(); setShowTracking(true); }}
+                className="flex-1 flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-white text-sm font-bold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/20"
+              >
+                <Radio className="w-4 h-4" /> Share My Location
+              </button>
+              <button
+                data-testid="prompt-skip-location-btn"
+                onClick={() => setShowLocationPrompt(false)}
+                className="flex-1 rounded-full border border-slate-200 px-4 py-3 text-slate-500 text-sm font-semibold hover:bg-slate-50 transition-all"
+              >
+                Skip for Now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
