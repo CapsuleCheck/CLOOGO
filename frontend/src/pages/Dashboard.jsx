@@ -35,6 +35,30 @@ function RecenterMap({ center }) {
   return null;
 }
 
+function MiniMap({ lat, lng, label }) {
+  return (
+    <div className="h-20 rounded-xl overflow-hidden border border-slate-100 pointer-events-none mt-3">
+      <MapContainer
+        center={[lat, lng]}
+        zoom={14}
+        style={{ height: '100%', width: '100%' }}
+        zoomControl={false}
+        attributionControl={false}
+        dragging={false}
+        scrollWheelZoom={false}
+        doubleClickZoom={false}
+        touchZoom={false}
+        keyboard={false}
+      >
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <Marker position={[lat, lng]}>
+          <Popup>{label}</Popup>
+        </Marker>
+      </MapContainer>
+    </div>
+  );
+}
+
 function ErrandCard({ errand }) {
   const timeAgo = formatDistanceToNow(new Date(errand.created_at), { addSuffix: true });
   const imgSrc = errand.image_url ? `${process.env.REACT_APP_BACKEND_URL}${errand.image_url}` : null;
@@ -84,7 +108,11 @@ function ErrandCard({ errand }) {
             <span className="truncate text-xs">{errand.delivery_neighborhood}</span>
           </div>
         </div>
-        <div className="flex items-center justify-between pt-2.5 border-t border-slate-50">
+        {/* Mini map preview */}
+        {errand.pickup_lat && errand.pickup_lng && (
+          <MiniMap lat={errand.pickup_lat} lng={errand.pickup_lng} label={errand.pickup_neighborhood} />
+        )}
+        <div className="flex items-center justify-between pt-2.5 border-t border-slate-50 mt-3">
           <div className="flex items-center gap-1.5">
             <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">
               {errand.poster_name?.[0]?.toUpperCase()}
