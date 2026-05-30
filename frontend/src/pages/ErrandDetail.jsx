@@ -407,11 +407,11 @@ export default function ErrandDetail() {
     };
   }, []);
 
-  // Auto-prompt runner to share location when offer is accepted
+  // Auto-prompt runner to share location when offer is accepted OR errand is picked up
   useEffect(() => {
     if (!errand || !user || promptShownRef.current) return;
-    const isRunnerMatched = errand.runner_id === user.id && ['matched', 'in_progress'].includes(errand.status);
-    if (isRunnerMatched && !sharingLocation) {
+    const isRunnerActive = errand.runner_id === user.id && ['matched', 'in_progress'].includes(errand.status);
+    if (isRunnerActive && !sharingLocation) {
       promptShownRef.current = true;
       setShowLocationPrompt(true);
     }
@@ -536,7 +536,8 @@ export default function ErrandDetail() {
                 {paymentLoading ? 'Loading...' : `Pay $${errand.accepted_price?.toFixed(2)}`}
               </button>
             )}
-            {(isPoster || isRunner) && ['matched', 'in_progress'].includes(errand.status) && (
+            {/* Poster: Track Runner button — opens the live map */}
+            {isPoster && ['matched', 'in_progress'].includes(errand.status) && (
               <button data-testid="track-runner-btn"
                 onClick={() => setShowTracking(prev => !prev)}
                 className={`flex items-center gap-2 rounded-full px-5 py-2.5 font-bold text-sm transition-all ${
@@ -545,19 +546,27 @@ export default function ErrandDetail() {
                     : 'border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50'
                 }`}>
                 <Navigation className="w-4 h-4" />
-                {showTracking ? 'Hide Tracking' : 'Track Runner'}
+                {showTracking ? 'Hide Map' : 'Track Runner'}
               </button>
             )}
-            {isRunner && errand.status === 'in_progress' && (
-              <button data-testid="share-location-btn"
-                onClick={sharingLocation ? stopSharingLocation : startSharingLocation}
+            {/* Runner: Share Tracking button — starts/stops GPS sharing */}
+            {isRunner && ['matched', 'in_progress'].includes(errand.status) && (
+              <button data-testid="share-tracking-btn"
+                onClick={() => {
+                  if (sharingLocation) {
+                    stopSharingLocation();
+                  } else {
+                    startSharingLocation();
+                    setShowTracking(true);
+                  }
+                }}
                 className={`flex items-center gap-2 rounded-full px-5 py-2.5 font-bold text-sm transition-all ${
                   sharingLocation
-                    ? 'bg-red-500 text-white hover:bg-red-600'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                    ? 'bg-red-500 text-white hover:bg-red-600 shadow-md'
+                    : 'border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50'
                 }`}>
                 <Radio className={`w-4 h-4 ${sharingLocation ? 'animate-pulse' : ''}`} />
-                {sharingLocation ? 'Stop Sharing' : 'Share My Location'}
+                {sharingLocation ? 'Stop Sharing' : 'Share Tracking'}
               </button>
             )}
             {isRunner && errand.status === 'in_progress' && (
@@ -912,7 +921,7 @@ export default function ErrandDetail() {
                 onClick={() => { setShowLocationPrompt(false); startSharingLocation(); setShowTracking(true); }}
                 className="flex-1 flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-white text-sm font-bold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-600/20"
               >
-                <Radio className="w-4 h-4" /> Share My Location
+                <Radio className="w-4 h-4" /> Enable Tracking
               </button>
               <button
                 data-testid="prompt-skip-location-btn"
