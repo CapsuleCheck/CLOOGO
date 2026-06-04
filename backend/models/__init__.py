@@ -30,6 +30,8 @@ class ErrandCreate(BaseModel):
     offered_price: float
     pickup_lat: Optional[float] = None
     pickup_lng: Optional[float] = None
+    delivery_lat: Optional[float] = None
+    delivery_lng: Optional[float] = None
     image_url: Optional[str] = None
 
 

@@ -9,71 +9,7 @@ import axios from 'axios';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { formatDistanceToNow, format } from 'date-fns';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-
-// Fix Leaflet default icon
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
-
-const runnerIcon = new L.DivIcon({
-  className: '',
-  html: `<div style="background:#059669;width:36px;height:36px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M20 8h-3V4H3c-1.1 0-2 .9-2 2v11h2c0 1.66 1.34 3 3 3s3-1.34 3-3h6c0 1.66 1.34 3 3 3s3-1.34 3-3h2v-5l-3-4zM6 18.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm13.5-9l1.96 2.5H17V9.5h2.5zm-1.5 9c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
-  </div>`,
-  iconSize: [36, 36],
-  iconAnchor: [18, 18],
-});
-
-function FlyToLocation({ position }) {
-  const map = useMap();
-  useEffect(() => {
-    if (position) map.flyTo(position, 15, { animate: true, duration: 1 });
-  }, [position]);
-  return null;
-}
-
-function LiveTrackingMap({ runnerLocation, errandTitle }) {
-  const position = runnerLocation?.lat ? [runnerLocation.lat, runnerLocation.lng] : null;
-  return (
-    <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm" style={{ height: 280 }}>
-      <MapContainer
-        center={position || [51.5074, -0.1278]}
-        zoom={position ? 15 : 10}
-        style={{ height: '100%', width: '100%' }}
-        zoomControl={true}
-      >
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; OpenStreetMap contributors'
-        />
-        {position && (
-          <>
-            <FlyToLocation position={position} />
-            <Marker position={position} icon={runnerIcon}>
-              <Popup>
-                <div className="text-center">
-                  <p className="font-bold text-slate-900 text-sm">Runner is here</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{errandTitle}</p>
-                  {runnerLocation.updated_at && (
-                    <p className="text-xs text-emerald-600 mt-1">
-                      Updated {formatDistanceToNow(new Date(runnerLocation.updated_at), { addSuffix: true })}
-                    </p>
-                  )}
-                </div>
-              </Popup>
-            </Marker>
-          </>
-        )}
-      </MapContainer>
-    </div>
-  );
-}
+import HereTrackingMap from '@/components/HereTrackingMap';
 
 const STATUS_CONFIG = {
   open: { label: 'Open for Offers', color: 'bg-blue-50 text-blue-700 border-blue-200', step: 1 },
@@ -601,14 +537,7 @@ export default function ErrandDetail() {
                   </span>
                 )}
               </div>
-              {runnerLocation?.lat ? (
-                <LiveTrackingMap runnerLocation={runnerLocation} errandTitle={errand.item_description} />
-              ) : (
-                <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 h-40 flex flex-col items-center justify-center gap-2">
-                  <Navigation className="w-8 h-8 text-slate-300" />
-                  <p className="text-sm text-slate-400">Map will appear once runner shares their location</p>
-                </div>
-              )}
+              <HereTrackingMap errand={errand} runnerLocation={runnerLocation} />
             </div>
           )}
         </div>

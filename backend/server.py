@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List, Optional, Dict
 import uuid
 from datetime import datetime, timezone
-from emergentintegrations.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+import stripe
 import asyncio
 
 # Local modules
@@ -36,6 +36,9 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+if STRIPE_API_KEY:
+    stripe.api_key = STRIPE_API_KEY
 VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_PRIVATE_KEY_PATH = ROOT_DIR / os.environ.get('VAPID_PRIVATE_KEY_PATH', 'vapid_private.pem')
 VAPID_CLAIMS_EMAIL = os.environ.get('VAPID_CLAIMS_EMAIL', 'mailto:admin@cloogo.app')
@@ -266,6 +269,8 @@ async def create_errand(errand_data: ErrandCreate, current_user=Depends(get_curr
         "offered_price": float(errand_data.offered_price),
         "pickup_lat": errand_data.pickup_lat,
         "pickup_lng": errand_data.pickup_lng,
+        "delivery_lat": errand_data.delivery_lat,
+        "delivery_lng": errand_data.delivery_lng,
         "image_url": errand_data.image_url,
         "status": "open",
         "runner_id": None,
@@ -337,7 +342,7 @@ async def update_runner_location(errand_id: str, location: dict, current_user=De
     )
     return {"status": "ok"}
 
-@api_router.get("/errands/{errand_id}/runner-location")
+@api_router.get("/errands/{errand_id}/runner-location") 
 async def get_runner_location(errand_id: str, current_user=Depends(get_current_user)):
     errand = await db.errands.find_one({"id": errand_id}, {"_id": 0})
     if not errand:
@@ -629,20 +634,25 @@ async def create_checkout(request: Request, body: CheckoutRequest, current_user=
     success_url = f"{body.origin_url}/errands/{body.errand_id}?session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{body.origin_url}/errands/{body.errand_id}"
 
-    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
-    checkout_req = CheckoutSessionRequest(
-        amount=amount,
-        currency="usd",
+    session = stripe.checkout.Session.create(
+        mode="payment",
+        line_items=[{
+            "price_data": {
+                "currency": "usd",
+                "unit_amount": int(round(amount * 100)),
+                "product_data": {"name": errand.get("item_description", "Errand payment")},
+            },
+            "quantity": 1,
+        }],
         success_url=success_url,
         cancel_url=cancel_url,
         metadata={
             "errand_id": body.errand_id,
             "payer_id": current_user["id"],
             "payer_email": current_user["email"],
-            "payee_id": errand.get("runner_id", "")
-        }
+            "payee_id": errand.get("runner_id", ""),
+        },
     )
-    session = await stripe_checkout.create_checkout_session(checkout_req)
 
     tx_doc = {
         "id": str(uuid.uuid4()),
@@ -652,12 +662,12 @@ async def create_checkout(request: Request, body: CheckoutRequest, current_user=
         "payee_id": errand.get("runner_id"),
         "amount": amount,
         "currency": "usd",
-        "session_id": session.session_id,
+        "session_id": session.id,
         "payment_status": "initiated",
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.payment_transactions.insert_one(tx_doc)
-    return {"url": session.url, "session_id": session.session_id}
+    return {"url": session.url, "session_id": session.id}
 
 @api_router.get("/payments/status/{session_id}")
 async def get_payment_status(session_id: str, current_user=Depends(get_current_user)):
@@ -666,12 +676,11 @@ async def get_payment_status(session_id: str, current_user=Depends(get_current_u
         raise HTTPException(status_code=404, detail="Transaction not found")
     if tx.get("payment_status") == "paid":
         return tx
-    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url="")
     try:
-        status_resp = await stripe_checkout.get_checkout_status(session_id)
-        update = {"payment_status": status_resp.payment_status, "stripe_status": status_resp.status}
+        session = stripe.checkout.Session.retrieve(session_id)
+        update = {"payment_status": session.payment_status, "stripe_status": session.status}
         await db.payment_transactions.update_one({"session_id": session_id}, {"$set": update})
-        if status_resp.payment_status == "paid":
+        if session.payment_status == "paid":
             await db.errands.update_one({"id": tx["errand_id"]}, {"$set": {"status": "in_progress"}})
             await manager.broadcast({"type": "payment_confirmed", "errand_id": tx["errand_id"]}, tx["errand_id"])
             errand_for_notif = await db.errands.find_one({"id": tx["errand_id"]})
@@ -691,16 +700,21 @@ async def stripe_webhook(request: Request):
     body = await request.body()
     signature = request.headers.get("Stripe-Signature")
     try:
-        stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url="")
-        webhook_resp = await stripe_checkout.handle_webhook(body, signature)
-        if webhook_resp.payment_status == "paid":
-            tx = await db.payment_transactions.find_one({"session_id": webhook_resp.session_id})
-            if tx and tx.get("payment_status") != "paid":
-                await db.payment_transactions.update_one(
-                    {"session_id": webhook_resp.session_id},
-                    {"$set": {"payment_status": "paid"}}
-                )
-                await db.errands.update_one({"id": tx["errand_id"]}, {"$set": {"status": "in_progress"}})
+        if STRIPE_WEBHOOK_SECRET and signature:
+            event = stripe.Webhook.construct_event(body, signature, STRIPE_WEBHOOK_SECRET)
+        else:
+            event = json.loads(body)
+        if event.get("type") == "checkout.session.completed":
+            sess = event["data"]["object"]
+            session_id = sess["id"]
+            if sess.get("payment_status") == "paid":
+                tx = await db.payment_transactions.find_one({"session_id": session_id})
+                if tx and tx.get("payment_status") != "paid":
+                    await db.payment_transactions.update_one(
+                        {"session_id": session_id},
+                        {"$set": {"payment_status": "paid"}}
+                    )
+                    await db.errands.update_one({"id": tx["errand_id"]}, {"$set": {"status": "in_progress"}})
     except Exception as e:
         logger.error(f"Webhook error: {e}")
     return {"received": True}
