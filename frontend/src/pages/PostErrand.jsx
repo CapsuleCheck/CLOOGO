@@ -54,7 +54,6 @@ export default function PostErrand() {
     setForm((prev) => ({ ...prev, [field]: value }));
 
   const handlePickupPlace = (place) => {
-    console.log({ place });
     setForm((prev) => ({
       ...prev,
       pickup_neighborhood: place.neighborhood || prev.pickup_neighborhood,
@@ -363,8 +362,9 @@ export default function PostErrand() {
                 </label>
                 <GooglePlacesAutocomplete
                   testId='post-pickup-neighborhood-input'
-                  placeholder='Search pickup area, e.g. Riverside, Midtown'
-                  hint='Pick from suggestions so runners see pickup on the map'
+                  types={['geocode']}
+                  placeholder='Search pickup area or address'
+                  hint='Type to search — pick a neighborhood or address from the list'
                   value={form.pickup_neighborhood}
                   onChange={(v) => update("pickup_neighborhood", v)}
                   onPlaceSelect={handlePickupPlace}
@@ -381,7 +381,9 @@ export default function PostErrand() {
                 </label>
                 <GooglePlacesAutocomplete
                   testId='post-delivery-neighborhood-input'
-                  placeholder='Search delivery area, e.g. Oak Park, Westside'
+                  types={['geocode']}
+                  placeholder='Search delivery area or address'
+                  hint='Type to search — pick a neighborhood or address from the list'
                   value={form.delivery_neighborhood}
                   onChange={(v) => update("delivery_neighborhood", v)}
                   onPlaceSelect={handleDeliveryNeighborhoodPlace}
@@ -394,10 +396,10 @@ export default function PostErrand() {
                 </label>
                 <GooglePlacesAutocomplete
                   testId='post-delivery-address-input'
-                  types={["address"]}
+                  types={['address']}
                   valueFromPlace='address'
                   placeholder='Search street address, e.g. 123 Oak Street'
-                  hint='Select your full delivery address — it will appear on the map'
+                  hint='Type your street address and pick from the list — it will appear on the map'
                   value={form.delivery_address}
                   onChange={(v) => {
                     update("delivery_address", v);

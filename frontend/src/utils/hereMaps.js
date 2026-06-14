@@ -1,4 +1,4 @@
-const HERE_VERSION = '3.2';
+const HERE_VERSION = "3.2";
 const HERE_BASE = `https://js.api.here.com/v3/${HERE_VERSION}`;
 
 const SCRIPTS = [
@@ -17,10 +17,10 @@ export function getHereApiKey() {
 
 function isHereReady() {
   return Boolean(
-    window.H?.Map
-    && window.H?.service?.Platform
-    && window.H?.map?.DomMarker
-    && window.H?.mapevents?.Behavior
+    window.H?.Map &&
+    window.H?.service?.Platform &&
+    window.H?.map?.DomMarker &&
+    window.H?.mapevents?.Behavior,
   );
 }
 
@@ -36,8 +36,8 @@ function waitForHere(maxMs = 30000) {
       if (Date.now() - start > maxMs) {
         reject(
           new Error(
-            'HERE Maps API failed to initialize. Scripts may be blocked, or mapsjs-core did not finish loading. Refresh the page or check the browser console Network tab for js.api.here.com errors.'
-          )
+            "HERE Maps API failed to initialize. Scripts may be blocked, or mapsjs-core did not finish loading. Refresh the page or check the browser console Network tab for js.api.here.com errors.",
+          ),
         );
         return;
       }
@@ -48,12 +48,12 @@ function waitForHere(maxMs = 30000) {
 }
 
 function appendStylesheet() {
-  const id = 'here-mapsjs-ui-css';
+  const id = "here-mapsjs-ui-css";
   if (document.getElementById(id)) return;
-  const link = document.createElement('link');
+  const link = document.createElement("link");
   link.id = id;
-  link.rel = 'stylesheet';
-  link.type = 'text/css';
+  link.rel = "stylesheet";
+  link.type = "text/css";
   link.href = `${HERE_BASE}/mapsjs-ui.css`;
   document.head.appendChild(link);
 }
@@ -62,24 +62,28 @@ function appendStylesheet() {
 function loadScript(src) {
   return new Promise((resolve, reject) => {
     const existing = document.querySelector(`script[src="${src}"]`);
-    if (existing?.getAttribute('data-loaded') === 'true') {
+    if (existing?.getAttribute("data-loaded") === "true") {
       resolve();
       return;
     }
     if (existing) {
-      existing.addEventListener('load', () => resolve(), { once: true });
-      existing.addEventListener('error', () => reject(new Error(`Failed to load ${src}`)), { once: true });
+      existing.addEventListener("load", () => resolve(), { once: true });
+      existing.addEventListener(
+        "error",
+        () => reject(new Error(`Failed to load ${src}`)),
+        { once: true },
+      );
       return;
     }
 
-    const script = document.createElement('script');
+    const script = document.createElement("script");
     script.src = src;
-    script.type = 'text/javascript';
-    script.charset = 'utf-8';
+    script.type = "text/javascript";
+    script.charset = "utf-8";
     script.async = false;
-    script.setAttribute('data-here-script', 'true');
+    script.setAttribute("data-here-script", "true");
     script.onload = () => {
-      script.setAttribute('data-loaded', 'true');
+      script.setAttribute("data-loaded", "true");
       resolve();
     };
     script.onerror = () => reject(new Error(`Failed to load ${src}`));
@@ -106,8 +110,8 @@ async function loadHereMapsDynamic() {
  * Prefer scripts declared in public/index.html; fall back to dynamic sequential load.
  */
 export async function loadHereMaps() {
-  if (typeof window === 'undefined') {
-    throw new Error('HERE Maps can only load in the browser');
+  if (typeof window === "undefined") {
+    throw new Error("HERE Maps can only load in the browser");
   }
   if (isHereReady()) {
     return window.H;
@@ -131,40 +135,42 @@ export async function loadHereMaps() {
 }
 
 export function createHerePlatform(H, apiKey) {
-  if (!apiKey) throw new Error('HERE API key is not configured (REACT_APP_HERE_API_KEY)');
+  if (!apiKey)
+    throw new Error("HERE API key is not configured (REACT_APP_HERE_API_KEY)");
   return new H.service.Platform({ apikey: apiKey });
 }
 
 export function getDefaultMapLayer(defaultLayers) {
   if (!defaultLayers) return null;
   return (
-    defaultLayers.vector?.normal?.map
-    || defaultLayers.raster?.normal?.map
-    || defaultLayers.vector?.normal?.mapnight
-    || (defaultLayers.vector?.normal && Object.values(defaultLayers.vector.normal)[0])
-    || null
+    defaultLayers.vector?.normal?.map ||
+    defaultLayers.raster?.normal?.map ||
+    defaultLayers.vector?.normal?.mapnight ||
+    (defaultLayers.vector?.normal &&
+      Object.values(defaultLayers.vector.normal)[0]) ||
+    null
   );
 }
 
 export async function geocodeAddress(query, apiKey) {
-  if (!query?.trim()) throw new Error('Empty address');
-  if (!apiKey) throw new Error('HERE API key is not configured');
+  if (!query?.trim()) throw new Error("Empty address");
+  if (!apiKey) throw new Error("HERE API key is not configured");
 
-  const url = new URL('https://geocode.search.hereapi.com/v1/geocode');
-  url.searchParams.set('q', query.trim());
-  url.searchParams.set('apiKey', apiKey);
+  const url = new URL("https://geocode.search.hereapi.com/v1/geocode");
+  url.searchParams.set("q", query.trim());
+  url.searchParams.set("apiKey", apiKey);
 
   const res = await fetch(url.toString());
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
     const detail = data.error_description || data.error || res.statusText;
-    if (res.status === 401 || String(detail).toLowerCase().includes('apikey')) {
+    if (res.status === 401 || String(detail).toLowerCase().includes("apikey")) {
       throw new Error(
-        'HERE API key is invalid or lacks Geocoding access. Check your key at https://platform.here.com/'
+        "HERE API key is invalid or lacks Geocoding access. Check your key at https://platform.here.com/",
       );
     }
-    throw new Error(detail || 'Geocoding failed');
+    throw new Error(detail || "Geocoding failed");
   }
 
   const item = data.items?.[0];
@@ -179,19 +185,19 @@ export async function geocodeAddress(query, apiKey) {
 }
 
 export async function calculateRoute(apiKey, points) {
-  if (!apiKey) throw new Error('HERE API key is not configured');
+  if (!apiKey) throw new Error("HERE API key is not configured");
   if (!points || points.length < 2) return null;
 
   const params = new URLSearchParams({
     apiKey,
-    transportMode: 'car',
-    return: 'polyline,summary',
+    transportMode: "car",
+    return: "polyline,summary",
     origin: `${points[0].lat},${points[0].lng}`,
     destination: `${points[points.length - 1].lat},${points[points.length - 1].lng}`,
   });
 
   if (points.length === 3) {
-    params.append('via', `${points[1].lat},${points[1].lng}`);
+    params.append("via", `${points[1].lat},${points[1].lng}`);
   }
 
   const url = `https://router.hereapi.com/v8/routes?${params.toString()}`;
@@ -199,39 +205,47 @@ export async function calculateRoute(apiKey, points) {
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    const detail = data.title || data.message || data.error_description || res.statusText;
-    console.warn('HERE routing:', detail);
+    const detail =
+      data.title || data.message || data.error_description || res.statusText;
+    console.warn("HERE routing:", detail);
     return null;
   }
 
   return data.routes?.[0] || null;
 }
 
-export function drawRouteOnMap(H, map, route, style = { strokeColor: '#059669', lineWidth: 5 }) {
+export function drawRouteOnMap(
+  H,
+  map,
+  route,
+  style = { strokeColor: "#059669", lineWidth: 5 },
+) {
   const lines = [];
   (route?.sections || []).forEach((section) => {
     if (!section.polyline) return;
     try {
-      const lineString = H.geo.LineString.fromFlexiblePolyline(section.polyline);
+      const lineString = H.geo.LineString.fromFlexiblePolyline(
+        section.polyline,
+      );
       const polyline = new H.map.Polyline(lineString, { style });
       map.addObject(polyline);
       lines.push(polyline);
     } catch (e) {
-      console.warn('Failed to draw route section', e);
+      console.warn("Failed to draw route section", e);
     }
   });
   return lines;
 }
 
 export function formatDistance(meters) {
-  if (meters == null) return '—';
+  if (meters == null) return "—";
   const miles = meters / 1609.34;
   if (miles < 0.1) return `${Math.round(meters)} m`;
   return `${miles.toFixed(1)} mi`;
 }
 
 export function formatDuration(seconds) {
-  if (seconds == null) return '—';
+  if (seconds == null) return "—";
   const mins = Math.round(seconds / 60);
   if (mins < 60) return `${mins} min`;
   const h = Math.floor(mins / 60);
@@ -240,7 +254,7 @@ export function formatDuration(seconds) {
 }
 
 export function createDomMarker(H, lat, lng, html) {
-  const el = document.createElement('div');
+  const el = document.createElement("div");
   el.innerHTML = html;
   const icon = new H.map.DomIcon(el, { anchor: { x: 18, y: 18 } });
   return new H.map.DomMarker({ lat, lng }, { icon });
