@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, MapPin, Clock, Package, ChevronRight, RefreshCw, List, Map } from 'lucide-react';
 import axios from 'axios';
@@ -197,7 +197,7 @@ export default function Dashboard() {
 
   const CATEGORIES = ['Grocery', 'Food & Drinks', 'Pharmacy', 'Electronics', 'Documents', 'Clothing', 'Other'];
 
-  const fetchErrands = async () => {
+  const fetchErrands = useCallback(async () => {
     setLoading(true);
     try {
       const params = { status: 'open' };
@@ -210,9 +210,9 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [API, authHeader, filterNeighborhood, filterCategory]);
 
-  useEffect(() => { fetchErrands(); }, [filterNeighborhood, filterCategory]);
+  useEffect(() => { fetchErrands(); }, [fetchErrands]);
 
   const filtered = errands.filter(e =>
     !search || e.item_description.toLowerCase().includes(search.toLowerCase()) ||

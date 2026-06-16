@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Package, ChevronRight, Plus } from 'lucide-react';
 import axios from 'axios';
@@ -26,12 +26,14 @@ export default function MyErrands() {
   const [errands, setErrands] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchErrands = useCallback(() => {
     axios.get(`${API}/my/errands`, { headers: authHeader })
       .then(res => setErrands(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [API, authHeader]);
+
+  useEffect(() => { fetchErrands(); }, [fetchErrands]);
 
   return (
     <main className="pt-20 pb-28 md:pb-8 min-h-screen">

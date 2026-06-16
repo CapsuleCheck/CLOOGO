@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import {
   MapPin,
@@ -104,7 +104,7 @@ export default function ErrandDetail() {
     (o) => o.runner_id === user?.id && o.status === "countered",
   );
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     try {
       const [errandRes, offersRes] = await Promise.all([
         axios.get(`${API}/errands/${id}`, { headers: authHeader }),
@@ -129,7 +129,7 @@ export default function ErrandDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, API, authHeader, user?.id]);
 
   const mergeMessages = (incoming) => {
     setMessages((prev) => {
@@ -145,7 +145,7 @@ export default function ErrandDetail() {
 
   useEffect(() => {
     fetchAll();
-  }, [id]);
+  }, [fetchAll]);
 
   // Check if current user already rated
   useEffect(() => {
@@ -156,7 +156,7 @@ export default function ErrandDetail() {
         if (res.data.rated) setRatingSubmitted(true);
       })
       .catch(console.error);
-  }, [errand?.status]);
+  }, [errand, errand?.status, id, API, authHeader]);
 
   // Chat polling fallback (runs when canChat, every 5s)
   useEffect(() => {
@@ -173,7 +173,7 @@ export default function ErrandDetail() {
     };
     const interval = setInterval(poll, 5000);
     return () => clearInterval(interval);
-  }, [canChat, token, id]);
+  }, [canChat, token, id, API, authHeader]);
 
   // WebSocket connection (best-effort; polling above is the reliable path)
   useEffect(() => {
@@ -211,7 +211,7 @@ export default function ErrandDetail() {
     return () => {
       ws.close();
     };
-  }, [errand?.status, canChat, token]);
+  }, [errand, errand?.status, canChat, token, id]);
 
   // Scroll chat panel (not the page) when a new message arrives
   useEffect(() => {
@@ -253,7 +253,7 @@ export default function ErrandDetail() {
     };
     toast.info("Checking payment status...");
     poll();
-  }, [sessionId]);
+  }, [sessionId, API, authHeader]);
 
   const submitOffer = async () => {
     if (
@@ -501,7 +501,7 @@ export default function ErrandDetail() {
     }
   };
 
-  const fetchRunnerLocation = async () => {
+  const fetchRunnerLocation = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/errands/${id}/runner-location`, {
         headers: authHeader,
@@ -510,7 +510,7 @@ export default function ErrandDetail() {
     } catch (err) {
       /* silent */
     }
-  };
+  }, [API, authHeader, id]);
 
   // Poll runner location every 5s when tracking panel is open
   useEffect(() => {
@@ -519,7 +519,7 @@ export default function ErrandDetail() {
     fetchRunnerLocation();
     const interval = setInterval(fetchRunnerLocation, 5000);
     return () => clearInterval(interval);
-  }, [showTracking, errand?.status]);
+  }, [showTracking, errand?.status, fetchRunnerLocation]);
 
   const startSharingLocation = () => {
     if (!navigator.geolocation) {
@@ -586,7 +586,7 @@ export default function ErrandDetail() {
       promptShownRef.current = true;
       setShowLocationPrompt(true);
     }
-  }, [errand?.status, errand?.runner_id, user?.id]);
+  }, [errand, errand?.status, errand?.runner_id, user, user?.id, sharingLocation]);
 
   if (loading) {
     return (

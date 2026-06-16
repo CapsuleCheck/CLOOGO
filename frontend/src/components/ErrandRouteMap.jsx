@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { loadGoogleMaps } from '@/utils/googleMaps';
 
 const MARKER_COLORS = {
@@ -21,14 +21,20 @@ export default function ErrandRouteMap({
   const [error, setError] = useState(null);
   const [ready, setReady] = useState(false);
 
-  const pickupPoint =
-    pickup?.lat != null && pickup?.lng != null
-      ? { lat: pickup.lat, lng: pickup.lng, label: pickup.label || 'Pickup' }
-      : null;
-  const deliveryPoint =
-    delivery?.lat != null && delivery?.lng != null
-      ? { lat: delivery.lat, lng: delivery.lng, label: delivery.label || 'Delivery' }
-      : null;
+  const pickupPoint = useMemo(
+    () =>
+      pickup?.lat != null && pickup?.lng != null
+        ? { lat: pickup.lat, lng: pickup.lng, label: pickup.label || 'Pickup' }
+        : null,
+    [pickup?.lat, pickup?.lng, pickup?.label],
+  );
+  const deliveryPoint = useMemo(
+    () =>
+      delivery?.lat != null && delivery?.lng != null
+        ? { lat: delivery.lat, lng: delivery.lng, label: delivery.label || 'Delivery' }
+        : null,
+    [delivery?.lat, delivery?.lng, delivery?.label],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -128,14 +134,7 @@ export default function ErrandRouteMap({
     return () => {
       cancelled = true;
     };
-  }, [
-    pickupPoint?.lat,
-    pickupPoint?.lng,
-    deliveryPoint?.lat,
-    deliveryPoint?.lng,
-    pickupPoint?.label,
-    deliveryPoint?.label,
-  ]);
+  }, [pickupPoint, deliveryPoint]);
 
   const hasPoint = pickupPoint || deliveryPoint;
 

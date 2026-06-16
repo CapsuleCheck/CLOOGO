@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { MapPin, Navigation, Package, Truck, AlertCircle } from "lucide-react";
 import {
   loadHereMaps,
@@ -45,10 +45,13 @@ export default function HereTrackingMap({ errand, runnerLocation }) {
   const [routeInfo, setRouteInfo] = useState(null);
   const [mapReady, setMapReady] = useState(false);
 
-  const runnerPoint =
-    runnerLocation?.lat != null && runnerLocation?.lng != null
-      ? { lat: runnerLocation.lat, lng: runnerLocation.lng }
-      : null;
+  const runnerPoint = useMemo(
+    () =>
+      runnerLocation?.lat != null && runnerLocation?.lng != null
+        ? { lat: runnerLocation.lat, lng: runnerLocation.lng }
+        : null,
+    [runnerLocation?.lat, runnerLocation?.lng],
+  );
 
   const disposeMap = useCallback(() => {
     routeLinesRef.current.forEach((line) => {
@@ -293,8 +296,7 @@ export default function HereTrackingMap({ errand, runnerLocation }) {
     errand.delivery_neighborhood,
     errand.delivery_lat,
     errand.delivery_lng,
-    runnerPoint?.lat,
-    runnerPoint?.lng,
+    runnerPoint,
     disposeMap,
   ]);
 

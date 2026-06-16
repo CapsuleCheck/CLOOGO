@@ -34,7 +34,7 @@ export default function Profile() {
         setEarnings(earningsRes.data);
       }).catch(console.error);
     }
-  }, [user]);
+  }, [user, API, authHeader]);
 
   const saveProfile = async () => {
     if (!form.name.trim() || !form.neighborhood.trim()) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Truck, ChevronRight, MapPin } from 'lucide-react';
 import axios from 'axios';
@@ -25,14 +25,14 @@ export default function MyRuns() {
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchRuns = () => {
+  const fetchRuns = useCallback(() => {
     axios.get(`${API}/my/runs`, { headers: authHeader })
       .then(res => setRuns(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));
-  };
+  }, [API, authHeader]);
 
-  useEffect(() => { fetchRuns(); }, []);
+  useEffect(() => { fetchRuns(); }, [fetchRuns]);
 
   const markDelivered = async (errandId, e) => {
     e.preventDefault();

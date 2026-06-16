@@ -27,7 +27,7 @@ export const NotificationProvider = ({ children }) => {
     } catch (err) {
       console.error('Failed to fetch notifications', err);
     }
-  }, [token, API]);
+  }, [token, API, authHeader]);
 
   useEffect(() => {
     if (user) fetchNotifications();
