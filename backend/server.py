@@ -935,10 +935,31 @@ async def delete_account(current_user=Depends(get_current_user)):
 
 # --- App setup ---
 app.include_router(api_router)
+
+# CORS
+# Browsers reject `Access-Control-Allow-Origin: *` when `allow_credentials=True`.
+# So we default to explicit dev origins, and only allow `*` when credentials are disabled.
+cors_origins_env = os.environ.get("CORS_ORIGINS")
+if cors_origins_env:
+    cors_origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()]
+else:
+    cors_origins = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+    ]
+
+allow_credentials = os.environ.get("CORS_ALLOW_CREDENTIALS", "true").lower() == "true"
+if "*" in cors_origins:
+    # If you truly want wildcard origins, you must disable credentials.
+    cors_origins = ["*"]
+    allow_credentials = False
+
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_credentials=allow_credentials,
+    allow_origins=cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
