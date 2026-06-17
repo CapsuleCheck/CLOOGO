@@ -50,6 +50,49 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 
+def _normalize_origin(origin: str) -> str:
+    return origin.strip().rstrip("/")
+
+
+def build_cors_settings():
+    """Build CORS config from env. Supports Netlify deploys via origin regex."""
+    origins: set[str] = set()
+
+    for part in os.environ.get("CORS_ORIGINS", "").split(","):
+        origin = _normalize_origin(part)
+        if origin:
+            origins.add(origin)
+
+    frontend_url = _normalize_origin(os.environ.get("FRONTEND_URL", ""))
+    if frontend_url:
+        origins.add(frontend_url)
+
+    if not origins:
+        origins.update({
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:3001",
+        })
+
+    regex_env = os.environ.get("CORS_ORIGIN_REGEX")
+    if regex_env is None:
+        # Match Netlify production + preview URLs by default.
+        origin_regex = r"https://([\w-]+\.)*netlify\.app$"
+    elif regex_env.strip().lower() in ("", "none", "false", "0"):
+        origin_regex = None
+    else:
+        origin_regex = regex_env.strip()
+
+    allow_credentials = os.environ.get("CORS_ALLOW_CREDENTIALS", "true").lower() == "true"
+    origin_list = sorted(origins)
+
+    if "*" in origin_list:
+        return ["*"], None, False
+
+    return origin_list, origin_regex, allow_credentials
+
+
 # --- WebSocket Connection Manager ---
 class ConnectionManager:
     def __init__(self):
@@ -936,33 +979,25 @@ async def delete_account(current_user=Depends(get_current_user)):
 # --- App setup ---
 app.include_router(api_router)
 
-# CORS
-# Browsers reject `Access-Control-Allow-Origin: *` when `allow_credentials=True`.
-# So we default to explicit dev origins, and only allow `*` when credentials are disabled.
-cors_origins_env = os.environ.get("CORS_ORIGINS")
-if cors_origins_env:
-    cors_origins = [o.strip() for o in cors_origins_env.split(",") if o.strip()]
-else:
-    cors_origins = [
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-    ]
-
-allow_credentials = os.environ.get("CORS_ALLOW_CREDENTIALS", "true").lower() == "true"
-if "*" in cors_origins:
-    # If you truly want wildcard origins, you must disable credentials.
-    cors_origins = ["*"]
-    allow_credentials = False
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=allow_credentials,
-    allow_origins=cors_origins,
-    allow_methods=["*"],
-    allow_headers=["*"],
+# CORS must be the outermost middleware (added last).
+cors_origins, cors_origin_regex, cors_allow_credentials = build_cors_settings()
+logger.info(
+    "CORS allow_origins=%s allow_origin_regex=%s allow_credentials=%s",
+    cors_origins,
+    cors_origin_regex,
+    cors_allow_credentials,
 )
+
+cors_kwargs = {
+    "allow_credentials": cors_allow_credentials,
+    "allow_origins": cors_origins,
+    "allow_methods": ["*"],
+    "allow_headers": ["*"],
+}
+if cors_origin_regex:
+    cors_kwargs["allow_origin_regex"] = cors_origin_regex
+
+app.add_middleware(CORSMiddleware, **cors_kwargs)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
