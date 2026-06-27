@@ -25,15 +25,31 @@ from auth import (
     JWT_SECRET, JWT_ALGORITHM, security
 )
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 UPLOADS_DIR = ROOT_DIR / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
 
-mongo_url = os.environ['MONGO_URL']
+
+def _require_env(name: str) -> str:
+    value = os.environ.get(name)
+    if not value:
+        raise RuntimeError(
+            f"Missing required environment variable '{name}'. "
+            f"Set it in your deployment (e.g. Railway → Variables) or backend/.env. "
+            f"Required: MONGO_URL, DB_NAME."
+        )
+    return value
+
+
+mongo_url = _require_env('MONGO_URL')
+db_name = _require_env('DB_NAME')
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[db_name]
 
 STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '')
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
@@ -46,8 +62,26 @@ VAPID_CLAIMS_EMAIL = os.environ.get('VAPID_CLAIMS_EMAIL', 'mailto:admin@cloogo.a
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+
+@app.get("/")
+async def root():
+    return {"status": "ok", "service": "cloogo-api"}
+
+
+@app.get("/health")
+async def health():
+    """Lightweight liveness check — does not touch the database."""
+    return {"status": "ok"}
+
+
+@app.get("/health/db")
+async def health_db():
+    """Readiness check that verifies the MongoDB connection."""
+    try:
+        await client.admin.command("ping")
+        return {"status": "ok", "database": "connected"}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Database unavailable: {exc}")
 
 
 def _normalize_origin(origin: str) -> str:
