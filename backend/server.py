@@ -1033,6 +1033,30 @@ if cors_origin_regex:
 
 app.add_middleware(CORSMiddleware, **cors_kwargs)
 
+
+@app.on_event("startup")
+async def on_startup():
+    logger.info("=" * 60)
+    logger.info("Cloogo API starting up")
+    logger.info("Server bound on port: %s", os.environ.get("PORT", "8000"))
+    logger.info("Database name: %s", db_name)
+    logger.info("Allowed CORS origins: %s", cors_origins)
+    logger.info("Stripe configured: %s", bool(STRIPE_API_KEY))
+    logger.info("Push (VAPID) configured: %s", bool(VAPID_PUBLIC_KEY))
+
+    try:
+        await client.admin.command("ping")
+        logger.info("MongoDB connection: OK")
+    except Exception as exc:
+        # Don't crash the server — surface the issue but stay alive so the
+        # liveness check (/health) still passes and logs are visible.
+        logger.error("MongoDB connection FAILED at startup: %s", exc)
+
+    logger.info("Cloogo API startup complete — ready to accept requests")
+    logger.info("=" * 60)
+
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    logger.info("Cloogo API shutting down — closing MongoDB connection")
     client.close()
