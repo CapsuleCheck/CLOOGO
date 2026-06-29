@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { MapPin, Navigation, Package, Truck, AlertCircle } from "lucide-react";
+import { Navigation, User, UserCheck, Truck, AlertCircle } from "lucide-react";
 import {
   loadHereMaps,
   getHereApiKey,
@@ -15,10 +15,12 @@ import {
 
 const DEFAULT_CENTER = { lat: 41.8781, lng: -87.6298 };
 
+// Recognizable human icons: a person waiting to hand the item over (pickup)
+// and a person waiting to receive it (delivery). The runner stays a vehicle.
 const MARKER_HTML = {
-  runner: `<div style="background:#059669;width:36px;height:36px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;font-size:18px;">🚗</div>`,
-  pickup: `<div style="background:#f59e0b;width:32px;height:32px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;font-size:14px;">📦</div>`,
-  delivery: `<div style="background:#7c3aed;width:32px;height:32px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;font-size:14px;">🏁</div>`,
+  runner: `<div style="background:#059669;width:38px;height:38px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;font-size:20px;">🚗</div>`,
+  pickup: `<div style="background:#f59e0b;width:38px;height:38px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;font-size:20px;">🙋</div>`,
+  delivery: `<div style="background:#7c3aed;width:38px;height:38px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;font-size:20px;">🧍</div>`,
 };
 
 function buildLegLabels(points, runnerPoint, pickupPoint, deliveryPoint) {
@@ -31,12 +33,31 @@ function buildLegLabels(points, runnerPoint, pickupPoint, deliveryPoint) {
   return ["Route"];
 }
 
+// Rough great-circle distance in metres — used to skip route redraws when the
+// runner has barely moved between polls.
+function distanceMeters(a, b) {
+  if (!a || !b) return Infinity;
+  const R = 6371000;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 export default function HereTrackingMap({ errand, runnerLocation }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
+  const HRef = useRef(null);
   const uiRef = useRef(null);
   const markersGroupRef = useRef(null);
   const routeLinesRef = useRef([]);
+  const runnerMarkerRef = useRef(null);
+  const pickupRef = useRef(null);
+  const deliveryRef = useRef(null);
+  const lastRouteRunnerRef = useRef(null);
   const initGenRef = useRef(0);
 
   const [loading, setLoading] = useState(true);
@@ -52,6 +73,11 @@ export default function HereTrackingMap({ errand, runnerLocation }) {
         : null,
     [runnerLocation?.lat, runnerLocation?.lng],
   );
+
+  // Live ref so the one-time init effect can read the current runner position
+  // for the initial center without depending on it (which would rebuild the map).
+  const runnerPointRef = useRef(runnerPoint);
+  runnerPointRef.current = runnerPoint;
 
   const disposeMap = useCallback(() => {
     routeLinesRef.current.forEach((line) => {
@@ -79,7 +105,12 @@ export default function HereTrackingMap({ errand, runnerLocation }) {
       }
       mapRef.current = null;
     }
+    HRef.current = null;
     markersGroupRef.current = null;
+    runnerMarkerRef.current = null;
+    pickupRef.current = null;
+    deliveryRef.current = null;
+    lastRouteRunnerRef.current = null;
     setMapReady(false);
   }, []);
 
@@ -163,7 +194,10 @@ export default function HereTrackingMap({ errand, runnerLocation }) {
 
         if (gen !== initGenRef.current) return;
 
-        const center = runnerPoint || pickup || delivery || DEFAULT_CENTER;
+        // Read the runner position once for the initial center; ongoing runner
+        // updates are handled by a separate effect so the map is never rebuilt.
+        const initialRunner = runnerPointRef.current;
+        const center = initialRunner || pickup || delivery || DEFAULT_CENTER;
 
         const map = new H.Map(containerRef.current, baseLayer, {
           zoom: 13,
@@ -171,6 +205,7 @@ export default function HereTrackingMap({ errand, runnerLocation }) {
           pixelRatio: window.devicePixelRatio || 1,
         });
         mapRef.current = map;
+        HRef.current = H;
 
         new H.mapevents.Behavior(new H.mapevents.MapEvents(map));
 
@@ -186,35 +221,21 @@ export default function HereTrackingMap({ errand, runnerLocation }) {
         map.addObject(markersGroupRef.current);
 
         const group = markersGroupRef.current;
-        const routePoints = [];
 
-        if (runnerPoint) {
-          group.addObject(
-            createDomMarker(
-              H,
-              runnerPoint.lat,
-              runnerPoint.lng,
-              MARKER_HTML.runner,
-            ),
-          );
-          routePoints.push(runnerPoint);
-        }
+        // Pickup and delivery are fixed for the lifetime of the map — add them
+        // once. The runner marker + route are managed by the runner effect.
+        pickupRef.current = pickup;
+        deliveryRef.current = delivery;
+
         if (pickup) {
           group.addObject(
             createDomMarker(H, pickup.lat, pickup.lng, MARKER_HTML.pickup),
           );
-          routePoints.push(pickup);
         }
         if (delivery) {
           group.addObject(
-            createDomMarker(
-              H,
-              delivery.lat,
-              delivery.lng,
-              MARKER_HTML.delivery,
-            ),
+            createDomMarker(H, delivery.lat, delivery.lng, MARKER_HTML.delivery),
           );
-          routePoints.push(delivery);
         }
 
         if (group.getObjects().length > 0) {
@@ -230,41 +251,11 @@ export default function HereTrackingMap({ errand, runnerLocation }) {
         window.addEventListener("resize", resizeHandler);
         requestAnimationFrame(() => map.getViewPort()?.resize());
 
-        if (routePoints.length >= 2) {
-          const route = await calculateRoute(apiKey, routePoints);
-          if (route && gen === initGenRef.current) {
-            routeLinesRef.current = drawRouteOnMap(H, map, route);
-            const legLabels = buildLegLabels(
-              routePoints,
-              runnerPoint,
-              pickup,
-              delivery,
-            );
-            const legs = (route.sections || []).map((section, i) => ({
-              label: legLabels[i] || `Leg ${i + 1}`,
-              distance: section.summary?.length,
-              duration: section.summary?.duration,
-            }));
-            const summary = (route.sections || []).reduce(
-              (acc, s) => ({
-                length: acc.length + (s.summary?.length || 0),
-                duration: acc.duration + (s.summary?.duration || 0),
-              }),
-              { length: 0, duration: 0 },
-            );
-            setRouteInfo({
-              legs,
-              totalDistance: summary.length,
-              totalDuration: summary.duration,
-            });
-          }
-        }
-
         if (gen !== initGenRef.current) return;
 
         if (warns.length > 0) {
           setWarnings(warns);
-          if (!pickup && !delivery && !runnerPoint) {
+          if (!pickup && !delivery && !initialRunner) {
             setError(warns[0]);
           }
         }
@@ -296,9 +287,130 @@ export default function HereTrackingMap({ errand, runnerLocation }) {
     errand.delivery_neighborhood,
     errand.delivery_lat,
     errand.delivery_lng,
-    runnerPoint,
     disposeMap,
   ]);
+
+  // Runner updates: move the runner marker and redraw the route in place,
+  // without disposing/rebuilding the map. Runs once the map is ready and again
+  // whenever the runner's position changes (polled every few seconds).
+  useEffect(() => {
+    if (!mapReady) return;
+    const H = HRef.current;
+    const map = mapRef.current;
+    const group = markersGroupRef.current;
+    if (!H || !map || !group) return;
+
+    let cancelled = false;
+    const gen = initGenRef.current;
+
+    // 1) Sync the runner marker.
+    let runnerJustAdded = false;
+    if (runnerPoint) {
+      if (runnerMarkerRef.current) {
+        try {
+          runnerMarkerRef.current.setGeometry({
+            lat: runnerPoint.lat,
+            lng: runnerPoint.lng,
+          });
+        } catch (_) {
+          /* noop */
+        }
+      } else {
+        runnerMarkerRef.current = createDomMarker(
+          H,
+          runnerPoint.lat,
+          runnerPoint.lng,
+          MARKER_HTML.runner,
+        );
+        group.addObject(runnerMarkerRef.current);
+        runnerJustAdded = true;
+      }
+    } else if (runnerMarkerRef.current) {
+      try {
+        group.removeObject(runnerMarkerRef.current);
+      } catch (_) {
+        /* noop */
+      }
+      runnerMarkerRef.current = null;
+    }
+
+    // When the runner first appears, widen the view to include them once.
+    if (runnerJustAdded) {
+      const bounds = group.getBoundingBox();
+      if (bounds) map.getViewModel().setLookAtData({ bounds }, true);
+    }
+
+    // 2) Redraw the route — but skip if the runner barely moved since last time.
+    const pickup = pickupRef.current;
+    const delivery = deliveryRef.current;
+    const points = [runnerPoint, pickup, delivery].filter(Boolean);
+
+    if (points.length < 2) {
+      routeLinesRef.current.forEach((line) => {
+        try {
+          map.removeObject(line);
+        } catch (_) {
+          /* noop */
+        }
+      });
+      routeLinesRef.current = [];
+      lastRouteRunnerRef.current = null;
+      setRouteInfo(null);
+      return;
+    }
+
+    const moved =
+      !runnerPoint ||
+      !lastRouteRunnerRef.current ||
+      distanceMeters(lastRouteRunnerRef.current, runnerPoint) > 20;
+    if (routeLinesRef.current.length > 0 && !moved) return;
+
+    (async () => {
+      const apiKey = getHereApiKey();
+      const route = await calculateRoute(apiKey, points);
+      if (cancelled || gen !== initGenRef.current || !mapRef.current) return;
+
+      // Draw the new route first, then remove the old lines — no empty flash.
+      const newLines = route ? drawRouteOnMap(H, mapRef.current, route) : [];
+      routeLinesRef.current.forEach((line) => {
+        try {
+          mapRef.current.removeObject(line);
+        } catch (_) {
+          /* noop */
+        }
+      });
+      routeLinesRef.current = newLines;
+      lastRouteRunnerRef.current = runnerPoint ? { ...runnerPoint } : null;
+
+      if (!route) {
+        setRouteInfo(null);
+        return;
+      }
+
+      const legLabels = buildLegLabels(points, runnerPoint, pickup, delivery);
+      const legs = (route.sections || []).map((section, i) => ({
+        label: legLabels[i] || `Leg ${i + 1}`,
+        distance: section.summary?.length,
+        duration: section.summary?.duration,
+      }));
+      const summary = (route.sections || []).reduce(
+        (acc, s) => ({
+          length: acc.length + (s.summary?.length || 0),
+          duration: acc.duration + (s.summary?.duration || 0),
+        }),
+        { length: 0, duration: 0 },
+      );
+      setRouteInfo({
+        legs,
+        totalDistance: summary.length,
+        totalDuration: summary.duration,
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [runnerPoint, mapReady]);
 
   if (error && !mapReady) {
     return (
@@ -338,10 +450,10 @@ export default function HereTrackingMap({ errand, runnerLocation }) {
           <Truck className='w-3 h-3' /> Runner
         </span>
         <span className='inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-800 px-2.5 py-1 font-medium'>
-          <Package className='w-3 h-3' /> Pickup
+          <User className='w-3 h-3' /> Pickup
         </span>
         <span className='inline-flex items-center gap-1.5 rounded-full bg-violet-50 text-violet-800 px-2.5 py-1 font-medium'>
-          <MapPin className='w-3 h-3' /> Delivery
+          <UserCheck className='w-3 h-3' /> Delivery
         </span>
       </div>
 
