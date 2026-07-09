@@ -54,7 +54,6 @@ export default function PostErrand() {
     setForm((prev) => ({ ...prev, [field]: value }));
 
   const handlePickupPlace = (place) => {
-    console.log({ place });
     setForm((prev) => ({
       ...prev,
       pickup_neighborhood:
