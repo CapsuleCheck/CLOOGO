@@ -54,9 +54,11 @@ export default function PostErrand() {
     setForm((prev) => ({ ...prev, [field]: value }));
 
   const handlePickupPlace = (place) => {
+    console.log({ place });
     setForm((prev) => ({
       ...prev,
-      pickup_neighborhood: place.neighborhood || prev.pickup_neighborhood,
+      pickup_neighborhood:
+        place.formattedAddress || prev.neighborhood || prev.pickup_neighborhood,
       pickup_lat: place.lat ?? prev.pickup_lat,
       pickup_lng: place.lng ?? prev.pickup_lng,
     }));
@@ -357,17 +359,39 @@ export default function PostErrand() {
                     <span className='flex items-center justify-center w-5 h-5 text-xs font-bold rounded-full bg-amber-100 text-amber-600'>
                       P
                     </span>
-                    Pickup neighborhood <span className='text-red-500'>*</span>
+                    Pickup address <span className='text-red-500'>*</span>
                   </span>
                 </label>
                 <GooglePlacesAutocomplete
                   testId='post-pickup-neighborhood-input'
-                  types={['geocode']}
+                  types={["geocode"]}
                   placeholder='Search pickup area or address'
-                  hint='Type to search — pick a neighborhood or address from the list'
+                  hint='Type to search — pick an address from the list'
                   value={form.pickup_neighborhood}
                   onChange={(v) => update("pickup_neighborhood", v)}
                   onPlaceSelect={handlePickupPlace}
+                  required
+                />
+              </div>
+              <div>
+                <label className={labelClass}>
+                  Delivery address <span className='text-red-500'>*</span>
+                </label>
+                <GooglePlacesAutocomplete
+                  testId='post-delivery-address-input'
+                  types={["address"]}
+                  valueFromPlace='address'
+                  placeholder='Search street address, e.g. 123 Oak Street'
+                  hint='Type your street address and pick from the list — it will appear on the map'
+                  value={form.delivery_address}
+                  onChange={(v) => {
+                    update("delivery_address", v);
+                    if (!v.trim()) {
+                      update("delivery_lat", null);
+                      update("delivery_lng", null);
+                    }
+                  }}
+                  onPlaceSelect={handleDeliveryAddressPlace}
                   required
                 />
               </div>
@@ -381,34 +405,12 @@ export default function PostErrand() {
                 </label>
                 <GooglePlacesAutocomplete
                   testId='post-delivery-neighborhood-input'
-                  types={['geocode']}
+                  types={["geocode"]}
                   placeholder='Search delivery area or address'
                   hint='Type to search — pick a neighborhood or address from the list'
                   value={form.delivery_neighborhood}
                   onChange={(v) => update("delivery_neighborhood", v)}
                   onPlaceSelect={handleDeliveryNeighborhoodPlace}
-                  required
-                />
-              </div>
-              <div>
-                <label className={labelClass}>
-                  Delivery address <span className='text-red-500'>*</span>
-                </label>
-                <GooglePlacesAutocomplete
-                  testId='post-delivery-address-input'
-                  types={['address']}
-                  valueFromPlace='address'
-                  placeholder='Search street address, e.g. 123 Oak Street'
-                  hint='Type your street address and pick from the list — it will appear on the map'
-                  value={form.delivery_address}
-                  onChange={(v) => {
-                    update("delivery_address", v);
-                    if (!v.trim()) {
-                      update("delivery_lat", null);
-                      update("delivery_lng", null);
-                    }
-                  }}
-                  onPlaceSelect={handleDeliveryAddressPlace}
                   required
                 />
               </div>
