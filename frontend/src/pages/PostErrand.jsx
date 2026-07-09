@@ -363,7 +363,7 @@ export default function PostErrand() {
                 </label>
                 <GooglePlacesAutocomplete
                   testId='post-pickup-neighborhood-input'
-                  types={["geocode"]}
+                  types={[]}
                   placeholder='Search pickup area or address'
                   hint='Type to search — pick an address from the list'
                   value={form.pickup_neighborhood}
@@ -404,7 +404,7 @@ export default function PostErrand() {
                 </label>
                 <GooglePlacesAutocomplete
                   testId='post-delivery-neighborhood-input'
-                  types={["geocode"]}
+                  types={[]}
                   placeholder='Search delivery area or address'
                   hint='Type to search — pick a neighborhood or address from the list'
                   value={form.delivery_neighborhood}

@@ -32,7 +32,7 @@ export default function GooglePlacesAutocomplete({
   testId = "places-autocomplete",
   required = false,
   disabled = false,
-  types = ["geocode"],
+  types = ["all"],
   hint,
   valueFromPlace = "neighborhood",
 }) {
@@ -112,7 +112,6 @@ export default function GooglePlacesAutocomplete({
             google &&
             status === google.maps.places.PlacesServiceStatus.OK &&
             results?.length;
-
           if (!ok) {
             setPredictions([]);
             setOpen(false);
@@ -144,11 +143,9 @@ export default function GooglePlacesAutocomplete({
   const applyPlace = useCallback(
     (place) => {
       if (!place?.geometry) return;
-
       const fields = placeToAddressFields(place);
       const neighborhood = placeToNeighborhood(place);
-      const label =
-        neighborhood || place.formatted_address || place.name || "";
+      const label = neighborhood || place.formatted_address || place.name || "";
       const displayValue =
         valueFromPlace === "address"
           ? fields?.address || label
@@ -245,16 +242,16 @@ export default function GooglePlacesAutocomplete({
 
   return (
     <div ref={rootRef} className={`relative ${className}`}>
-      <div className="flex items-start gap-2">
-        <div className="relative flex-1 min-w-0">
-          <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10" />
+      <div className='flex items-start gap-2'>
+        <div className='relative flex-1 min-w-0'>
+          <MapPin className='absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none z-10' />
           <input
-            type="text"
+            type='text'
             required={required}
             disabled={disabled || loading}
             aria-busy={showSpinner}
             aria-expanded={open}
-            aria-autocomplete="list"
+            aria-autocomplete='list'
             aria-controls={open ? `${testId}-listbox` : undefined}
             data-testid={testId}
             className={`w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 py-3.5 text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all placeholder:text-slate-400 disabled:opacity-60 ${loading ? "border-emerald-200 bg-emerald-50/40" : ""} ${inputClassName}`}
@@ -265,21 +262,21 @@ export default function GooglePlacesAutocomplete({
               if (predictions.length > 0) setOpen(true);
             }}
             onKeyDown={handleKeyDown}
-            autoComplete="off"
-            role="combobox"
+            autoComplete='off'
+            role='combobox'
           />
 
           {open && predictions.length > 0 && (
             <ul
               id={`${testId}-listbox`}
-              role="listbox"
+              role='listbox'
               data-testid={`${testId}-suggestions`}
-              className="absolute z-[200] w-full mt-1 py-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto"
+              className='absolute z-[200] w-full mt-1 py-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto'
             >
               {predictions.map((p, i) => (
                 <li
                   key={p.place_id}
-                  role="option"
+                  role='option'
                   aria-selected={i === activeIndex}
                   data-testid={`${testId}-suggestion-${i}`}
                   className={`px-3.5 py-2.5 cursor-pointer text-sm transition-colors ${
@@ -293,11 +290,11 @@ export default function GooglePlacesAutocomplete({
                   }}
                   onMouseEnter={() => setActiveIndex(i)}
                 >
-                  <span className="font-medium block truncate">
+                  <span className='block font-medium truncate'>
                     {p.structured_formatting?.main_text || p.description}
                   </span>
                   {p.structured_formatting?.secondary_text && (
-                    <span className="text-xs text-slate-500 block truncate mt-0.5">
+                    <span className='text-xs text-slate-500 block truncate mt-0.5'>
                       {p.structured_formatting.secondary_text}
                     </span>
                   )}
@@ -309,15 +306,15 @@ export default function GooglePlacesAutocomplete({
 
         {showSpinner && (
           <div
-            className="flex-shrink-0 flex items-center gap-1.5 pt-3"
-            role="status"
-            aria-live="polite"
+            className='flex-shrink-0 flex items-center gap-1.5 pt-3'
+            role='status'
+            aria-live='polite'
           >
             <Loader2
-              className="w-5 h-5 text-emerald-600 animate-spin"
+              className='w-5 h-5 text-emerald-600 animate-spin'
               data-testid={`${testId}-loading-spinner`}
             />
-            <span className="sr-only">
+            <span className='sr-only'>
               {loading ? "Loading address search" : "Searching addresses"}
             </span>
           </div>
@@ -325,18 +322,18 @@ export default function GooglePlacesAutocomplete({
       </div>
 
       {loading && !loadError && (
-        <p className="text-xs text-emerald-700 mt-1.5 font-medium">
+        <p className='text-xs text-emerald-700 mt-1.5 font-medium'>
           Loading address search — start typing to see suggestions.
         </p>
       )}
       {loadError && (
-        <p className="text-xs text-amber-600 mt-1.5">
+        <p className='text-xs text-amber-600 mt-1.5'>
           {loadError}. Check REACT_APP_GOOGLE_MAPS_API_KEY in frontend/.env and
           ensure Places API is enabled.
         </p>
       )}
       {!loadError && !loading && (
-        <p className="text-xs text-slate-400 mt-1.5">
+        <p className='text-xs text-slate-400 mt-1.5'>
           {hint || "Start typing and pick an address from the list"}
         </p>
       )}
